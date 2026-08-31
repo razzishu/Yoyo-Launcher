@@ -1,0 +1,89 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Centered and scaled within the adaptive icon safe zone (66x66dp inner bounds) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.88"
+        android:scaleY="0.88">
+
+        <!-- 1. Outer Home Launcher Arch / Screen Outline -->
+        <path
+            android:pathData="M26,46 L54,20 L82,46 V76 Q82,82 76,82 H32 Q26,82 26,76 Z"
+            android:strokeWidth="4"
+            android:strokeColor="#80FFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000" />
+
+        <!-- 2. Launcher Grid Cards (App Drawer / Workspace Tiles) -->
+        <!-- Top Left: Cyan -->
+        <path
+            android:pathData="M33,48 h10 v10 h-10 z"
+            android:fillColor="#FF06B6D4" />
+        <!-- Top Right: Violet -->
+        <path
+            android:pathData="M65,48 h10 v10 h-10 z"
+            android:fillColor="#FF818CF8" />
+        <!-- Bottom Left: Coral Pink -->
+        <path
+            android:pathData="M33,64 h10 v10 h-10 z"
+            android:fillColor="#FFF43F5E" />
+        <!-- Bottom Right: Gold Amber -->
+        <path
+            android:pathData="M65,64 h10 v10 h-10 z"
+            android:fillColor="#FFF59E0B" />
+
+        <!-- 3. Dynamic Orbit Rings (Representing "Yoyo" Spin & Launch Motion) -->
+        <path
+            android:pathData="M36,36 C42,28 66,28 72,36"
+            android:strokeWidth="3"
+            android:strokeColor="#FF38BDF8"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000" />
+
+        <path
+            android:pathData="M28,60 C24,70 30,78 40,80"
+            android:strokeWidth="2.5"
+            android:strokeColor="#FFA855F7"
+            android:strokeLineCap="round"
+            android:fillColor="#00000000" />
+
+        <!-- 4. Iconic Stylized 'Y' Emblem (The Hero Logo element) -->
+        <!-- Left Arm of Y -->
+        <path
+            android:pathData="M40,38 L54,55"
+            android:strokeWidth="6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round" />
+        <!-- Right Arm of Y -->
+        <path
+            android:pathData="M68,38 L54,55"
+            android:strokeWidth="6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round" />
+        <!-- Vertical Stem of Y with gradient fill -->
+        <path
+            android:pathData="M54,55 L54,76"
+            android:strokeWidth="6"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round" />
+
+        <!-- Core Glowing Node at the Y Junction -->
+        <path
+            android:pathData="M51,52 A3,3 0 1,1 57,52 A3,3 0 1,1 51,52"
+            android:fillColor="#FF38BDF8" />
+
+        <!-- 5. Brand Accent - Mini "YOYO" Launcher Badge Line -->
+        <path
+            android:pathData="M44,24 L64,24"
+            android:strokeWidth="2"
+            android:strokeColor="#FF6366F1"
+            android:strokeLineCap="round" />
+
+    </group>
+</vector>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="pref_sleep_gesture"
+        android:persistent="true"
+        android:title="@string/pref_sleep_gesture_title"
+        android:summary="@string/pref_sleep_gesture_summary" />
+
+</androidx.preference.PreferenceScreen>

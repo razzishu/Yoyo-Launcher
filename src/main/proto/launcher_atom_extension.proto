@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+option java_package = "com.yoyo.launcher.logger";
+option java_outer_classname = "LauncherAtomExtensions";
+
+// Wrapper message for additional containers used in variants.
+message ExtendedContainers {}

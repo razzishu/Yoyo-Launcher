@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="launcher_layout_entries">
+        <item>@string/pref_launcher_layout_4_columns</item>
+        <item>@string/pref_launcher_layout_5_columns</item>
+    </string-array>
+    <string-array name="launcher_layout_values">
+        <item>4_columns</item>
+        <item>5_columns</item>
+    </string-array>
+</resources>
