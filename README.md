@@ -1,7 +1,7 @@
 # yoyo Launcher 🪀
 
 ![License GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)
-![Platform](https://img.shields.io/badge/Platform-Android%208.0%2B-green.svg)
+![Platform](https://img.shields.io/badge/Platform-Android%2012%2B-green.svg)
 ![Build](https://img.shields.io/badge/Build-Android%20Studio-brightgreen.svg)
 
 **yoyo Launcher** is a fast, clean, and highly customizable third-party Android home screen replacement. Born from the stable foundation of LineageOS Trebuchet (16.2), it has been completely decoupled from system-level constraints to work seamlessly as a standalone app on *any* Android device without needing root or a custom ROM.
