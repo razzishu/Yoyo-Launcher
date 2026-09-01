@@ -248,6 +248,7 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
 
         @JvmField val ENABLE_TWOLINE_ALLAPPS_TOGGLE = backedUpItem("pref_enable_two_line_toggle", false)
         @JvmField val WORKSPACE_LOCK = backedUpItem("pref_workspace_lock", false)
+        @JvmField val ADD_ICON_TO_HOME = backedUpItem("pref_add_icon_to_home", true)
         @JvmField val ALLAPPS_THEMED_ICONS = backedUpItem("pref_allapps_themed_icons", false)
         @JvmField val THEMED_ICONS_HOMESCREEN_ONLY = backedUpItem("pref_themed_icons_homescreen_only", false)
         @JvmField val ENABLE_MINUS_ONE = backedUpItem("pref_enable_minus_one", true)

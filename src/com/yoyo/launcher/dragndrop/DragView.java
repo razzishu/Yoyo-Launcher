@@ -62,6 +62,7 @@ import androidx.dynamicanimation.animation.SpringForce;
 
 import com.android.app.animation.Interpolators;
 import com.yoyo.launcher.Flags;
+import com.yoyo.launcher.LauncherPrefs;
 import com.yoyo.launcher.R;
 import com.yoyo.launcher.Utilities;
 import com.yoyo.launcher.graphics.ThemeManager;
@@ -257,6 +258,11 @@ public abstract class DragView<T extends Context & ActivityContext> extends Fram
     @TargetApi(Build.VERSION_CODES.O)
     public void setItemInfo(final ItemInfo info) {
         mItemType = info.itemType;
+        String iconPack = LauncherPrefs.get(getContext()).get(LauncherPrefs.ICON_PACK);
+        boolean isCustomIconPack = iconPack != null && !iconPack.equals("default") && !iconPack.equals("themed");
+        if (isCustomIconPack) {
+            return;
+        }
         // Load the adaptive icon on a background thread and add the view in ui thread.
         MODEL_EXECUTOR.getHandler().postAtFrontOfQueue(() -> {
             ThemeManager themeManager = ThemeManager.INSTANCE.get(getContext());

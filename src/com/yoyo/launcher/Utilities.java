@@ -732,6 +732,13 @@ public final class Utilities {
             Log.e("Utilities", "getFullDrawable: mainIcon is null for item=" + info);
             return null;
         }
+
+        String iconPack = LauncherPrefs.get(context).get(LauncherPrefs.ICON_PACK);
+        boolean isCustomIconPack = iconPack != null && !iconPack.equals("default") && !iconPack.equals("themed");
+        if (isCustomIconPack && !(mainIcon instanceof AdaptiveIconDrawable)) {
+            return null;
+        }
+
         Log.d("Utilities", "getFullDrawable: item=" + info + " mainIcon=" + mainIcon + " class=" + mainIcon.getClass().getName());
         AdaptiveIconDrawable result;
         if (mainIcon instanceof AdaptiveIconDrawable aid) {

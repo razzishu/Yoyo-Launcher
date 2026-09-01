@@ -60,6 +60,7 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceGroupAdapter;
 import androidx.preference.PreferenceViewHolder;
 import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartFragmentCallback;
 import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartScreenCallback;
@@ -471,10 +472,27 @@ public class SettingsActivity extends FragmentActivity
             pref.getExtras().putInt("badge_color", badgeColorRes);
         }
 
+        private Preference findPreferenceAt(PreferenceGroup group, int position, int[] counter) {
+            for (int i = 0; i < group.getPreferenceCount(); i++) {
+                Preference pref = group.getPreference(i);
+                if (pref.isVisible()) {
+                    if (counter[0] == position) {
+                        return pref;
+                    }
+                    counter[0]++;
+                    if (pref instanceof PreferenceGroup) {
+                        Preference child = findPreferenceAt((PreferenceGroup) pref, position, counter);
+                        if (child != null) return child;
+                    }
+                }
+            }
+            return null;
+        }
+
         @Override
         protected RecyclerView.Adapter onCreateAdapter(PreferenceScreen preferenceScreen) {
             RecyclerView.Adapter adapter = super.onCreateAdapter(preferenceScreen);
-            return new RecyclerView.Adapter<PreferenceViewHolder>() {
+            RecyclerView.Adapter wrapperAdapter = new RecyclerView.Adapter<PreferenceViewHolder>() {
                 @NonNull
                 @Override
                 public PreferenceViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -484,7 +502,7 @@ public class SettingsActivity extends FragmentActivity
                 @Override
                 public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
                     adapter.onBindViewHolder(holder, position);
-                    Preference pref = preferenceScreen.getPreference(position);
+                    Preference pref = findPreferenceAt(preferenceScreen, position, new int[]{0});
 
                     View badgeFrame = holder.findViewById(R.id.icon_badge_frame);
                     if (badgeFrame != null && pref != null && pref.getExtras().containsKey("badge_color")) {
@@ -506,7 +524,47 @@ public class SettingsActivity extends FragmentActivity
                 public int getItemViewType(int position) {
                     return adapter.getItemViewType(position);
                 }
+
+                @Override
+                public long getItemId(int position) {
+                    return adapter.getItemId(position);
+                }
             };
+
+            adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+                @Override
+                public void onChanged() {
+                    wrapperAdapter.notifyDataSetChanged();
+                }
+
+                @Override
+                public void onItemRangeChanged(int positionStart, int itemCount) {
+                    wrapperAdapter.notifyItemRangeChanged(positionStart, itemCount);
+                }
+
+                @Override
+                public void onItemRangeChanged(int positionStart, int itemCount, Object payload) {
+                    wrapperAdapter.notifyItemRangeChanged(positionStart, itemCount, payload);
+                }
+
+                @Override
+                public void onItemRangeInserted(int positionStart, int itemCount) {
+                    wrapperAdapter.notifyItemRangeInserted(positionStart, itemCount);
+                }
+
+                @Override
+                public void onItemRangeRemoved(int positionStart, int itemCount) {
+                    wrapperAdapter.notifyItemRangeRemoved(positionStart, itemCount);
+                }
+
+                @Override
+                public void onItemRangeMoved(int fromPosition, int toPosition, int itemCount) {
+                    wrapperAdapter.notifyItemMoved(fromPosition, toPosition);
+                }
+            });
+
+            wrapperAdapter.setHasStableIds(adapter.hasStableIds());
+            return wrapperAdapter;
         }
 
         /**
@@ -620,23 +678,48 @@ public class SettingsActivity extends FragmentActivity
 
                 case "pref_workspace_lock":
                     applyCardStyle(preference, R.drawable.ic_lock_home, R.color.badge_color_red);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean val = (boolean) newValue;
+                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.WORKSPACE_LOCK, val);
+                        return true;
+                    });
                     break;
 
                 case "pref_add_icon_to_home":
                     applyCardStyle(preference, R.drawable.ic_add_home, R.color.badge_color_green);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean val = (boolean) newValue;
+                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.ADD_ICON_TO_HOME, val);
+                        return true;
+                    });
                     break;
 
                 case KEY_MINUS_ONE:
                     applyCardStyle(preference, R.drawable.ic_google_feed, R.color.badge_color_sky_blue);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean val = (boolean) newValue;
+                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.ENABLE_MINUS_ONE, val);
+                        return true;
+                    });
                     return launcherApps != null &&
                             launcherApps.isPackageEnabled(SEARCH_PACKAGE, myUserHandle());
 
                 case "pref_sleep_gesture":
                     applyCardStyle(preference, R.drawable.ic_sleep_gesture, R.color.badge_color_indigo);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean val = (boolean) newValue;
+                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.SLEEP_GESTURE, val);
+                        return true;
+                    });
                     break;
 
                 case "pref_desktop_show_labels":
                     applyCardStyle(preference, R.drawable.ic_labels, R.color.badge_color_mint);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean val = (boolean) newValue;
+                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.SHOW_DESKTOP_LABELS, val);
+                        return true;
+                    });
                     break;
 
                 case "pref_hotseat_qsb":
@@ -652,10 +735,20 @@ public class SettingsActivity extends FragmentActivity
 
                 case "pref_drawer_open_keyboard":
                     applyCardStyle(preference, R.drawable.ic_keyboard, R.color.badge_color_light_green);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean val = (boolean) newValue;
+                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.DRAWER_OPEN_KEYBOARD, val);
+                        return true;
+                    });
                     break;
 
                 case "pref_drawer_show_labels":
                     applyCardStyle(preference, R.drawable.ic_labels, R.color.badge_color_lilac);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean val = (boolean) newValue;
+                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.SHOW_DRAWER_LABELS, val);
+                        return true;
+                    });
                     break;
 
                 default:

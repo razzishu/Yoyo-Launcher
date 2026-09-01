@@ -52,6 +52,7 @@ import com.yoyo.launcher.BubbleTextView;
 import com.yoyo.launcher.DeviceProfile;
 import com.yoyo.launcher.InsettableFrameLayout;
 import com.yoyo.launcher.Launcher;
+import com.yoyo.launcher.LauncherPrefs;
 import com.yoyo.launcher.R;
 import com.yoyo.launcher.Utilities;
 import com.yoyo.launcher.dragndrop.DragLayer;
@@ -166,7 +167,7 @@ public class FloatingIconView extends FrameLayout implements
      * @param shapeProgressStart The progress value at which to start the shape reveal.
      * @param cornerRadius The corner radius of {@code rect}.
      * @param isOpening True if view is used for app open animation, false for app close animation.
-     * @param taskViewDrawAlpha the drawn {@link com.android.quickstep.views.TaskView} alpha
+     * @param taskViewDrawAlpha the drawn TaskView alpha
      */
     public void update(float alpha, RectF rect, float progress, float shapeProgressStart,
             float cornerRadius, boolean isOpening, int taskViewDrawAlpha) {
@@ -304,8 +305,16 @@ public class FloatingIconView extends FrameLayout implements
         Drawable drawable;
         boolean supportsAdaptiveIcons = !info.isDisabled(); // Use original icon for disabled icons.
 
+        String iconPack = LauncherPrefs.get(l).get(LauncherPrefs.ICON_PACK);
+        boolean isCustomIconPack = iconPack != null && !iconPack.equals("default") && !iconPack.equals("themed");
+
         Drawable badge = null;
-        if (info instanceof SystemShortcut) {
+        if (isCustomIconPack && btvIcon != null) {
+            drawable = btvIcon;
+            if (info instanceof ItemInfoWithIcon iiwi && iiwi.bitmap != null) {
+                badge = iiwi.bitmap.getBadgeDrawable(l, false);
+            }
+        } else if (info instanceof SystemShortcut) {
             if (originalView instanceof ImageView iv) {
                 drawable = iv.getDrawable();
             } else if (originalView instanceof DeepShortcutView dsv) {
