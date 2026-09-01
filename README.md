@@ -22,3 +22,7 @@ A clean, fast Android home screen launcher based on LineageOS Trebuchet (Launche
 ## License
 
 This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
+
+---
+
+`android` `launcher` `android-launcher` `trebuchet` `lineageos` `launcher3` `material-you` `icon-pack` `home-screen-replacement` `kotlin`
