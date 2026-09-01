@@ -15,8 +15,8 @@ android {
         applicationId = "com.yoyo.launcher"
         minSdk = 33
         targetSdk = 37
-        versionCode = 102
-        versionName = "1.0.2-beta"
+        versionCode = 103
+        versionName = "1.0.3-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         

@@ -416,14 +416,25 @@ public class InvariantDeviceProfile {
         DisplayMetrics metrics = context.getResources().getDisplayMetrics();
         GridOption closestProfile = displayOption.grid;
 
-        numColumns = closestProfile.numColumns;
-        numRows = closestProfile.numRows;
-        numAllAppsColumns = closestProfile.numAllAppsColumns;
-        numShownHotseatIcons = closestProfile.numHotseatIcons;
-        numDatabaseHotseatIcons = deviceType == TYPE_MULTI_DISPLAY
-                ? closestProfile.numDatabaseHotseatIcons : closestProfile.numHotseatIcons;
-        numDatabaseAllAppsColumns = deviceType == TYPE_MULTI_DISPLAY
-                ? closestProfile.numDatabaseAllAppsColumns : closestProfile.numAllAppsColumns;
+        String layoutPref = mPrefs.get(LAUNCHER_LAYOUT);
+        boolean is5Columns = !"4_columns".equals(layoutPref); // Default is 5_columns
+
+        if (is5Columns) {
+            numColumns = 5;
+            numAllAppsColumns = 5;
+            numShownHotseatIcons = 5;
+            numDatabaseHotseatIcons = 5;
+            numDatabaseAllAppsColumns = 5;
+            numRows = enableQsbOnHotseat ? 8 : 9;
+        } else {
+            numColumns = 4;
+            numAllAppsColumns = 4;
+            numShownHotseatIcons = 4;
+            numDatabaseHotseatIcons = 4;
+            numDatabaseAllAppsColumns = 4;
+            numRows = enableQsbOnHotseat ? 7 : 8;
+        }
+
         numSearchContainerColumns = closestProfile.numSearchContainerColumns;
 
         dbFile = closestProfile.dbFile;

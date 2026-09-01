@@ -324,10 +324,10 @@ public class DeviceProfile {
                 .Factory
                 .createDropTargetProfile(res, shouldApplyWidePortraitDimens);
 
-        numShownHotseatIcons = displayOptionSpec.numShownHotseatIcons;
+        numShownHotseatIcons = inv.numShownHotseatIcons;
         mHotseatColumnSpan = inv.numColumns;
 
-        numShownAllAppsColumns = displayOptionSpec.numAllAppsColumns;
+        numShownAllAppsColumns = inv.numAllAppsColumns;
 
         int hotseatBarBottomSpace;
         int minQsbMargin = res.getDimensionPixelSize(R.dimen.min_qsb_margin);

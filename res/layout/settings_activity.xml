@@ -1,19 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Copyright (C) 2021 The Android Open Source Project
-
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
--->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -38,24 +23,32 @@
             android:title="@string/settings_button_text"
             android:theme="?android:attr/actionBarTheme" />
 
+        <!-- Material You Modern Scrollable Pill Tab Bar -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabs"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:tabMode="fixed"
-            app:tabGravity="fill"
-            app:tabMaxWidth="0dp"
-            app:tabTextAppearance="@style/HomeSettings.TabTextAppearance"
-            app:tabTextColor="@color/tab_text_color"
-            app:tabSelectedTextColor="?android:attr/textColorPrimary"
-            app:tabIndicatorColor="?android:attr/textColorPrimary"
-            app:tabIndicatorFullWidth="true" />
+            android:layout_height="44dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/settings_card_bg"
+            app:tabMode="scrollable"
+            app:tabGravity="start"
+            app:tabIndicatorAnimationMode="elastic"
+            app:tabIndicatorGravity="stretch"
+            app:tabIndicator="@drawable/badge_pill_bg"
+            app:tabIndicatorColor="?android:attr/colorAccent"
+            app:tabSelectedTextColor="#FFFFFF"
+            app:tabTextColor="?android:attr/textColorSecondary"
+            app:tabRippleColor="#20000000" />
 
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/view_pager"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1"
+            android:overScrollMode="never" />
 
         <FrameLayout
             android:id="@+id/content_frame"

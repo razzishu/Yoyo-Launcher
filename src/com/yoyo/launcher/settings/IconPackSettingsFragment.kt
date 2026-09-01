@@ -189,7 +189,7 @@ class IconPackSettingsFragment : Fragment() {
 
     private fun updateSizeLabel(factor: Float) {
         val percentage = (factor * 100).toInt()
-        sizeLabel.text = "Icon Size ($percentage%)"
+        sizeLabel.text = "$percentage%"
     }
 
     private fun showLoading() {
@@ -295,38 +295,48 @@ class IconPackSettingsFragment : Fragment() {
         private val drawMatrix = Matrix()
 
         override fun draw(canvas: Canvas) {
+            val b = bounds
+            if (b.isEmpty) return
+
             canvas.withSave {
-                val b = bounds
-                
-                // Scale entire container to reflect size changes properly
-                translate(b.centerX().toFloat(), b.centerY().toFloat())
-                scale(sizeFactor, sizeFactor)
-                translate(-b.centerX().toFloat(), -b.centerY().toFloat())
+                val cx = b.centerX().toFloat()
+                val cy = b.centerY().toFloat()
+
+                // Scale container according to icon size factor
+                scale(sizeFactor, sizeFactor, cx, cy)
 
                 drawMatrix.reset()
-                drawMatrix.setScale(b.width() / 100f, b.height() / 100f)
-                drawMatrix.postTranslate(b.left.toFloat(), b.top.toFloat())
-                
+                val side = minOf(b.width(), b.height()).toFloat()
+                drawMatrix.setScale(side / 100f, side / 100f)
+                drawMatrix.postTranslate(b.left + (b.width() - side) / 2f, b.top + (b.height() - side) / 2f)
+
                 val scaledPath = Path()
                 path.transform(drawMatrix, scaledPath)
-                
+
                 if (isLegacy) {
                     canvas.drawPath(scaledPath, bgPaint)
                 }
-                
+
                 canvas.clipPath(scaledPath)
 
-                // Scaling inner content to fit within the shape naturally
-                val baseInnerScale = if (isLegacy) 0.65f else 1.15f
-                val centerX = b.centerX().toFloat()
-                val centerY = b.centerY().toFloat()
-                
-                translate(centerX, centerY)
-                scale(baseInnerScale, baseInnerScale)
-                translate(-centerX, -centerY)
-                
-                icon.setBounds(b.left, b.top, b.right, b.bottom)
-                icon.draw(canvas)
+                if (icon is AdaptiveIconDrawable) {
+                    icon.background?.let { bg ->
+                        bg.setBounds(b.left, b.top, b.right, b.bottom)
+                        bg.draw(canvas)
+                    }
+                    icon.foreground?.let { fg ->
+                        val expandX = (b.width() * 0.13f).toInt()
+                        val expandY = (b.height() * 0.13f).toInt()
+                        fg.setBounds(b.left - expandX, b.top - expandY, b.right + expandX, b.bottom + expandY)
+                        fg.draw(canvas)
+                    }
+                } else {
+                    val baseInnerScale = if (isLegacy) 0.70f else 1.0f
+                    scale(baseInnerScale, baseInnerScale, cx, cy)
+
+                    icon.setBounds(b.left, b.top, b.right, b.bottom)
+                    icon.draw(canvas)
+                }
             }
         }
 
@@ -337,6 +347,7 @@ class IconPackSettingsFragment : Fragment() {
         }
         override fun setColorFilter(cf: ColorFilter?) { 
             paint.colorFilter = cf 
+            bgPaint.colorFilter = cf
             icon.colorFilter = cf
         }
         @Deprecated("Deprecated in Java")
@@ -356,6 +367,10 @@ class IconPackSettingsFragment : Fragment() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.icon_pack_item, parent, false)
+            view.layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
             return ViewHolder(view)
         }
 
@@ -373,11 +388,8 @@ class IconPackSettingsFragment : Fragment() {
             val path = PathParser.createPathFromPathData(shapeModel.pathString)
             val rawIcon = app.loadIcon(pm)
 
-            val icon: Drawable? = when (selectedPackage) {
-                "default" -> {
-                    val isLegacy = !(rawIcon is AdaptiveIconDrawable)
-                    ClippedPreviewDrawable(rawIcon, path, isLegacy, currentSizeFactor)
-                }
+            val baseDrawable: Drawable = when (selectedPackage) {
+                "default" -> rawIcon
                 "themed" -> {
                     try {
                         val factory = LauncherIcons.obtain(context)
@@ -391,45 +403,22 @@ class IconPackSettingsFragment : Fragment() {
                         }
                         val themedIcon = bitmapInfo.newIcon(context, BitmapInfo.FLAG_THEMED, IconShape(100, path, Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8)))
                         factory.recycle()
-                        
-                        object : Drawable() {
-                            override fun draw(canvas: Canvas) {
-                                canvas.withSave {
-                                    val b = bounds
-                                    scale(currentSizeFactor, currentSizeFactor, b.centerX().toFloat(), b.centerY().toFloat())
-                                    themedIcon.bounds = b
-                                    themedIcon.draw(canvas)
-                                }
-                            }
-                            override fun setAlpha(a: Int) { themedIcon.alpha = a }
-                            override fun setColorFilter(cf: ColorFilter?) { themedIcon.colorFilter = cf }
-                            @Deprecated("Deprecated in Java")
-                            override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-                        }
+                        themedIcon
                     } catch (e: Exception) {
                         rawIcon
                     }
                 }
                 else -> {
-                    val packIcon = iconPackManager.getIcon(componentName, selectedPackage) ?: rawIcon
-                    object : Drawable() {
-                        override fun draw(canvas: Canvas) {
-                            canvas.withSave {
-                                val b = bounds
-                                scale(currentSizeFactor, currentSizeFactor, b.centerX().toFloat(), b.centerY().toFloat())
-                                packIcon.bounds = b
-                                packIcon.draw(canvas)
-                            }
-                        }
-                        override fun setAlpha(a: Int) { packIcon.alpha = a }
-                        override fun setColorFilter(cf: ColorFilter?) { packIcon.colorFilter = cf }
-                        @Deprecated("Deprecated in Java")
-                        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-                    }
+                    iconPackManager.getIcon(componentName, selectedPackage) ?: rawIcon
                 }
             }
             
-            holder.image.setImageDrawable(icon)
+            val isLegacy = (selectedPackage == "default") && (rawIcon !is AdaptiveIconDrawable)
+            val iconDrawable = ClippedPreviewDrawable(baseDrawable, path, isLegacy, currentSizeFactor)
+            
+            holder.image.layoutParams.width = dpToPx(44)
+            holder.image.layoutParams.height = dpToPx(44)
+            holder.image.setImageDrawable(iconDrawable)
             holder.name.visibility = View.GONE
         }
 
@@ -448,7 +437,7 @@ class IconPackSettingsFragment : Fragment() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.icon_pack_item, parent, false)
-            view.layoutParams = ViewGroup.LayoutParams(dpToPx(100), ViewGroup.LayoutParams.WRAP_CONTENT)
+            view.layoutParams = ViewGroup.LayoutParams(dpToPx(84), ViewGroup.LayoutParams.WRAP_CONTENT)
             return ViewHolder(view)
         }
 
@@ -465,8 +454,9 @@ class IconPackSettingsFragment : Fragment() {
                 holder.image.setImageDrawable(pack.icon)
             } else {
                 when (pack.packageName) {
-                    "default" -> holder.image.setImageResource(R.mipmap.ic_launcher)
+                    "default" -> holder.image.setImageResource(R.drawable.ic_default_icon_pack)
                     "themed" -> holder.image.setImageResource(R.drawable.ic_palette)
+                    else -> holder.image.setImageResource(R.drawable.ic_default_icon_pack)
                 }
             }
             
@@ -475,12 +465,10 @@ class IconPackSettingsFragment : Fragment() {
             }
             
             val isSelected = pack.packageName == selectedPackage
-            holder.itemView.alpha = if (isSelected) 1.0f else 0.6f
-            holder.itemView.scaleX = if (isSelected) 1.05f else 1.0f
-            holder.itemView.scaleY = if (isSelected) 1.05f else 1.0f
+            holder.itemView.alpha = if (isSelected) 1.0f else 0.5f
             
             if (isSelected) {
-                holder.itemView.setBackgroundResource(R.drawable.rounded_action_button)
+                holder.itemView.setBackgroundResource(R.drawable.item_selected_bg)
             } else {
                 holder.itemView.background = null
             }
@@ -501,7 +489,7 @@ class IconPackSettingsFragment : Fragment() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.icon_pack_item, parent, false)
-            view.layoutParams = ViewGroup.LayoutParams(dpToPx(80), ViewGroup.LayoutParams.WRAP_CONTENT)
+            view.layoutParams = ViewGroup.LayoutParams(dpToPx(72), ViewGroup.LayoutParams.WRAP_CONTENT)
             return ViewHolder(view)
         }
 
@@ -515,12 +503,13 @@ class IconPackSettingsFragment : Fragment() {
             context.theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
             holder.name.setTextColor(typedValue.data)
             
+            val isSelected = shape.key == selectedShapeKey
             val path = PathParser.createPathFromPathData(shape.pathString)
             val shapeDrawable = ShapeDrawable(PathShape(path, 100f, 100f))
-            shapeDrawable.intrinsicWidth = dpToPx(40)
-            shapeDrawable.intrinsicHeight = dpToPx(40)
-            shapeDrawable.paint.color = if (shape.key == selectedShapeKey) 
-                fetchAccentColor(holder.itemView.context) else Color.LTGRAY
+            shapeDrawable.intrinsicWidth = dpToPx(38)
+            shapeDrawable.intrinsicHeight = dpToPx(38)
+            shapeDrawable.paint.color = if (isSelected) 
+                fetchAccentColor(holder.itemView.context) else Color.GRAY
             shapeDrawable.paint.style = Paint.Style.FILL
             
             holder.image.setImageDrawable(shapeDrawable)
@@ -529,10 +518,13 @@ class IconPackSettingsFragment : Fragment() {
                 onSelected(shape)
             }
             
-            val isSelected = shape.key == selectedShapeKey
-            holder.itemView.alpha = if (isSelected) 1.0f else 0.6f
-            holder.itemView.scaleX = if (isSelected) 1.1f else 1.0f
-            holder.itemView.scaleY = if (isSelected) 1.1f else 1.0f
+            holder.itemView.alpha = if (isSelected) 1.0f else 0.5f
+
+            if (isSelected) {
+                holder.itemView.setBackgroundResource(R.drawable.item_selected_bg)
+            } else {
+                holder.itemView.background = null
+            }
         }
 
         override fun getItemCount() = shapes.size

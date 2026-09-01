@@ -258,7 +258,7 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         @JvmField val SUGGESTIONS_HOTSEAT = backedUpItem("pref_suggestions_hotseat", true)
         @JvmField val SLEEP_GESTURE = backedUpItem("pref_sleep_gesture", false)
         @JvmField val HOTSEAT_QSB = backedUpItem("pref_hotseat_qsb", true)
-        @JvmField val LAUNCHER_LAYOUT = backedUpItem("pref_launcher_layout", "4_columns")
+        @JvmField val LAUNCHER_LAYOUT = backedUpItem("pref_launcher_layout", "5_columns")
         @JvmField val ICON_PACK = backedUpItem("pref_icon_pack", "default")
         @JvmField val ICON_SIZE_FACTOR = backedUpItem("pref_icon_size_factor", 1.0f)
         @JvmField

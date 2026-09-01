@@ -43,6 +43,8 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -58,6 +60,7 @@ import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceViewHolder;
 import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartFragmentCallback;
 import androidx.preference.PreferenceFragmentCompat.OnPreferenceStartScreenCallback;
 import androidx.preference.PreferenceGroup;
@@ -190,11 +193,62 @@ public class SettingsActivity extends FragmentActivity
             }
         } else {
             setTitle(R.string.settings_button_text);
-            TabLayout tabs = findViewById(R.id.tabs);
-            ViewPager2 viewPager = findViewById(R.id.view_pager);
-            
-            viewPager.setAdapter(new SettingsPagerAdapter(this));
-            new TabLayoutMediator(tabs, viewPager, (tab, position) -> tab.setText(TAB_TITLES[position])).attach();
+            findViewById(R.id.tabs).setVisibility(View.GONE);
+            findViewById(R.id.view_pager).setVisibility(View.GONE);
+            findViewById(R.id.content_frame).setVisibility(View.VISIBLE);
+            View actionBar = findViewById(R.id.action_bar);
+            if (actionBar != null) {
+                actionBar.setVisibility(View.GONE);
+            }
+
+            if (savedInstanceState == null) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.content_frame, new MainSettingsFragment())
+                        .commit();
+            }
+
+            getSupportFragmentManager().addOnBackStackChangedListener(() -> {
+                int backStackCount = getSupportFragmentManager().getBackStackEntryCount();
+                if (backStackCount == 0) {
+                    setTitle(R.string.settings_button_text);
+                    if (actionBar != null) {
+                        actionBar.setVisibility(View.GONE);
+                    }
+                    if (getActionBar() != null) {
+                        getActionBar().setDisplayHomeAsUpEnabled(false);
+                    }
+                } else {
+                    if (actionBar != null) {
+                        actionBar.setVisibility(View.VISIBLE);
+                    }
+                }
+            });
+        }
+    }
+
+    public void openSubSettings(String fragmentClass, int xmlResId, String title) {
+        if (getSupportFragmentManager().isStateSaved()) return;
+
+        Fragment fragment;
+        if (!TextUtils.isEmpty(fragmentClass)) {
+            fragment = getSupportFragmentManager().getFragmentFactory().instantiate(getClassLoader(), fragmentClass);
+        } else {
+            fragment = LauncherSettingsFragment.newInstance(xmlResId);
+        }
+
+        getSupportFragmentManager().beginTransaction()
+                .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out, android.R.anim.fade_in, android.R.anim.fade_out)
+                .replace(R.id.content_frame, fragment)
+                .addToBackStack(null)
+                .commit();
+
+        setTitle(title);
+        View actionBar = findViewById(R.id.action_bar);
+        if (actionBar != null) {
+            actionBar.setVisibility(View.VISIBLE);
+        }
+        if (getActionBar() != null) {
+            getActionBar().setDisplayHomeAsUpEnabled(true);
         }
     }
 
@@ -238,7 +292,11 @@ public class SettingsActivity extends FragmentActivity
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
-            onBackPressed();
+            if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+                getSupportFragmentManager().popBackStack();
+            } else {
+                finish();
+            }
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -407,6 +465,50 @@ public class SettingsActivity extends FragmentActivity
             outState.putBoolean(SAVE_HIGHLIGHTED_KEY, mPreferenceHighlighted);
         }
 
+        private void applyCardStyle(Preference pref, int iconRes, int badgeColorRes) {
+            pref.setLayoutResource(R.layout.preference_card_item);
+            pref.setIcon(iconRes);
+            pref.getExtras().putInt("badge_color", badgeColorRes);
+        }
+
+        @Override
+        protected RecyclerView.Adapter onCreateAdapter(PreferenceScreen preferenceScreen) {
+            RecyclerView.Adapter adapter = super.onCreateAdapter(preferenceScreen);
+            return new RecyclerView.Adapter<PreferenceViewHolder>() {
+                @NonNull
+                @Override
+                public PreferenceViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                    return (PreferenceViewHolder) adapter.onCreateViewHolder(parent, viewType);
+                }
+
+                @Override
+                public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
+                    adapter.onBindViewHolder(holder, position);
+                    Preference pref = preferenceScreen.getPreference(position);
+
+                    View badgeFrame = holder.findViewById(R.id.icon_badge_frame);
+                    if (badgeFrame != null && pref != null && pref.getExtras().containsKey("badge_color")) {
+                        int colorRes = pref.getExtras().getInt("badge_color");
+                        badgeFrame.getBackground().setTint(holder.itemView.getContext().getColor(colorRes));
+                    }
+                    ImageView iconView = (ImageView) holder.findViewById(android.R.id.icon);
+                    if (iconView != null) {
+                        iconView.setColorFilter(0xFF1F1F1F);
+                    }
+                }
+
+                @Override
+                public int getItemCount() {
+                    return adapter.getItemCount();
+                }
+
+                @Override
+                public int getItemViewType(int position) {
+                    return adapter.getItemViewType(position);
+                }
+            };
+        }
+
         /**
          * Initializes a preference. This is called for every preference. Returning false here
          * will remove that preference from the list.
@@ -417,8 +519,29 @@ public class SettingsActivity extends FragmentActivity
             if (preference.getKey() == null) {
                 return true;
             }
+
             switch (preference.getKey()) {
+                case "pref_icon_pack_customization":
+                    applyCardStyle(preference, R.drawable.ic_palette, R.color.badge_color_pink);
+                    break;
+
+                case NOTIFICATION_DOTS_PREFERENCE_KEY:
+                    applyCardStyle(preference, R.drawable.ic_notification_dots, R.color.badge_color_orange);
+                    return BuildConfig.NOTIFICATION_DOTS_ENABLED;
+
+                case ALLOW_ROTATION_PREFERENCE_KEY:
+                    applyCardStyle(preference, R.drawable.ic_screen_rotation, R.color.badge_color_teal);
+                    if (Flags.oneGridSpecs() && !info.isRotationAllowed()) {
+                        return false;
+                    }
+                    if (info.isTablet(info.realBounds)) {
+                        return false;
+                    }
+                    preference.setDefaultValue(RotationHelper.getAllowRotationDefaultValue(info));
+                    return true;
+
                 case "pref_launcher_layout":
+                    applyCardStyle(preference, R.drawable.ic_grid_layout, R.color.badge_color_blue);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         String layoutVal = (String) newValue;
                         Context ctx = pref.getContext();
@@ -428,66 +551,9 @@ public class SettingsActivity extends FragmentActivity
                         return true;
                     });
                     return true;
-                case "pref_allapps_themed_icons":
-                    preference.setOnPreferenceChangeListener((p, newValue) -> {
-                        Preference homescreenOnly = findPreference("pref_themed_icons_homescreen_only");
-                        if (homescreenOnly != null) {
-                            homescreenOnly.setVisible((boolean) newValue);
-                        }
-                        return true;
-                    });
-                    return true;
-                case "pref_themed_icons_homescreen_only":
-                    Preference themedIcons = findPreference("pref_allapps_themed_icons");
-                    if (themedIcons instanceof TwoStatePreference) {
-                        preference.setVisible(((TwoStatePreference) themedIcons).isChecked());
-                    }
-                    return true;
-                case NOTIFICATION_DOTS_PREFERENCE_KEY:
-                    return BuildConfig.NOTIFICATION_DOTS_ENABLED;
-                case ALLOW_ROTATION_PREFERENCE_KEY:
-                    if (Flags.oneGridSpecs() && !info.isRotationAllowed()) {
-                        return false;
-                    }
-                    if (info.isTablet(info.realBounds)) {
-                        // Launcher supports rotation by default. No need to show this setting.
-                        return false;
-                    }
-                    // Initialize the UI once
-                    preference.setDefaultValue(RotationHelper.getAllowRotationDefaultValue(info));
-                    return true;
-                case DEVELOPER_OPTIONS_KEY:
-                    if (IS_STUDIO_BUILD) {
-                        preference.setOrder(0);
-                    }
-                    return mDeveloperOptionsEnabled;
-                case FIXED_LANDSCAPE_MODE:
-                    if (!Flags.oneGridSpecs()
-                            // adding this condition until fixing b/378972567
-                            || InvariantDeviceProfile.INSTANCE.get(getContext()).deviceType
-                            == TYPE_MULTI_DISPLAY
-                            || InvariantDeviceProfile.INSTANCE.get(getContext()).deviceType
-                            == TYPE_TABLET
-                            || info.isRotationAllowed()) {
-                        return false;
-                    }
-                    // When the setting changes rotate the screen accordingly to showcase the result
-                    // of the setting
-                    preference.setOnPreferenceChangeListener(
-                            (pref, newValue) -> {
-                                getActivity().setRequestedOrientation(
-                                        (boolean) newValue
-                                                ? ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                                : ActivityInfo.SCREEN_ORIENTATION_USER
-                                );
-                                return true;
-                            }
-                    );
-                    return !info.isTablet(info.realBounds);
-                case KEY_MINUS_ONE:
-                    return launcherApps != null &&
-                            launcherApps.isPackageEnabled(SEARCH_PACKAGE, myUserHandle());
+
                 case KEY_TRUST_APPS:
+                    applyCardStyle(preference, R.drawable.ic_lock_security, R.color.badge_color_purple);
                     preference.setOnPreferenceClickListener(p -> {
                         LineageUtils.showLockScreen(getActivity(),
                                 getString(R.string.trust_apps_manager_name), () -> {
@@ -497,17 +563,17 @@ public class SettingsActivity extends FragmentActivity
                         return true;
                     });
                     return true;
+
                 case KEY_SUGGESTIONS:
+                    applyCardStyle(preference, R.drawable.ic_suggestions, R.color.badge_color_amber);
                     if (launcherApps == null) {
                         return false;
                     }
                     boolean isInstalled = launcherApps.isPackageEnabled(SUGGESTIONS_PACKAGE, myUserHandle())
                             || launcherApps.isPackageEnabled("com.google.android.as.oss", myUserHandle());
-                    Log.d("SettingsActivity", "Suggestions package installed: " + isInstalled);
                     if (!isInstalled) {
-                        preference.setIntent(null); // Clear intent to handle click manually
+                        preference.setIntent(null);
                         preference.setOnPreferenceClickListener(p -> {
-                            Log.d("SettingsActivity", "Redirecting to Play Store for suggestions");
                             try {
                                 Intent intent = new Intent(Intent.ACTION_VIEW,
                                         Uri.parse("market://details?id=" + SUGGESTIONS_PACKAGE));
@@ -523,12 +589,14 @@ public class SettingsActivity extends FragmentActivity
                         preference.setSummary(R.string.install_personalization_summary);
                     }
                     return true;
-                case KEY_SUGGESTIONS_USAGE_STATS:
+
+                case "pref_suggestions_usage_stats":
+                    applyCardStyle(preference, R.drawable.ic_chart, R.color.badge_color_amber);
                     AppOpsManager appOps = (AppOpsManager) getContext().getSystemService(Context.APP_OPS_SERVICE);
                     int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
                             Process.myUid(), getContext().getPackageName());
                     if (mode == AppOpsManager.MODE_ALLOWED) {
-                        return false; // Hide if already granted
+                        return false;
                     }
                     preference.setOnPreferenceClickListener(p -> {
                         try {
@@ -541,6 +609,58 @@ public class SettingsActivity extends FragmentActivity
                         return true;
                     });
                     return true;
+
+                case "pref_suggestions_all_apps":
+                    applyCardStyle(preference, R.drawable.ic_grid_layout, R.color.badge_color_green);
+                    break;
+
+                case "pref_suggestions_hotseat":
+                    applyCardStyle(preference, R.drawable.ic_lock_home, R.color.badge_color_blue);
+                    break;
+
+                case "pref_workspace_lock":
+                    applyCardStyle(preference, R.drawable.ic_lock_home, R.color.badge_color_red);
+                    break;
+
+                case "pref_add_icon_to_home":
+                    applyCardStyle(preference, R.drawable.ic_add_home, R.color.badge_color_green);
+                    break;
+
+                case KEY_MINUS_ONE:
+                    applyCardStyle(preference, R.drawable.ic_google_feed, R.color.badge_color_sky_blue);
+                    return launcherApps != null &&
+                            launcherApps.isPackageEnabled(SEARCH_PACKAGE, myUserHandle());
+
+                case "pref_sleep_gesture":
+                    applyCardStyle(preference, R.drawable.ic_sleep_gesture, R.color.badge_color_indigo);
+                    break;
+
+                case "pref_desktop_show_labels":
+                    applyCardStyle(preference, R.drawable.ic_labels, R.color.badge_color_mint);
+                    break;
+
+                case "pref_hotseat_qsb":
+                    applyCardStyle(preference, R.drawable.ic_search_qsb, R.color.badge_color_peach);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean qsbVal = (boolean) newValue;
+                        Context ctx = pref.getContext();
+                        LauncherPrefs.get(ctx).put(LauncherPrefs.HOTSEAT_QSB, qsbVal);
+                        InvariantDeviceProfile.INSTANCE.get(ctx).onConfigChanged();
+                        return true;
+                    });
+                    break;
+
+                case "pref_drawer_open_keyboard":
+                    applyCardStyle(preference, R.drawable.ic_keyboard, R.color.badge_color_light_green);
+                    break;
+
+                case "pref_drawer_show_labels":
+                    applyCardStyle(preference, R.drawable.ic_labels, R.color.badge_color_lilac);
+                    break;
+
+                default:
+                    applyCardStyle(preference, R.drawable.ic_setting, R.color.badge_color_blue);
+                    break;
             }
             return true;
         }

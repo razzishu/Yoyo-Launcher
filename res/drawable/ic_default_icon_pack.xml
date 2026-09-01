@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Outer Rounded Base -->
+    <path
+        android:fillColor="?android:attr/colorAccent"
+        android:pathData="M12,4 h24 c4.4,0 8,3.6 8,8 v24 c0,4.4 -3.6,8 -8,8 h-24 c-4.4,0 -8,-3.6 -8,-8 v-24 c0,-4.4 3.6,-8 8,-8 Z" />
+    <!-- Inner Grid App Tiles -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M14,14 h8 v8 h-8 Z M26,14 h8 v8 h-8 Z M14,26 h8 v8 h-8 Z M26,26 h8 v8 h-8 Z" />
+</vector>

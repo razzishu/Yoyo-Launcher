@@ -3,10 +3,15 @@ package com.yoyo.launcher.icons
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Path
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 import android.os.UserHandle
+import androidx.core.graphics.PathParser
 import com.yoyo.launcher.LauncherPrefs
+import com.yoyo.launcher.graphics.ThemeManager
+import com.yoyo.launcher.shapes.ShapesProvider
 import com.yoyo.launcher.util.UserIconInfo
 
 /**
@@ -48,12 +53,44 @@ open class BaseIconFactory(
         val size = (iconBitmapSize * scale).toInt()
         val offset = (iconBitmapSize - size) / 2
         
-        // Fix: Draw shadow UNDER the icon by drawing icon to temp bitmap first
+        val prefs = LauncherPrefs.get(context)
+        val iconPack = prefs.get(LauncherPrefs.ICON_PACK) ?: "default"
+        val isDefaultOrThemed = iconPack == "default" || iconPack == "themed"
+
         val tempBitmap = Bitmap.createBitmap(iconBitmapSize, iconBitmapSize, Bitmap.Config.ARGB_8888)
         val tempCanvas = Canvas(tempBitmap)
         val oldBounds = icon.bounds
-        icon.setBounds(offset, offset, offset + size, offset + size)
-        icon.draw(tempCanvas)
+
+        if (isDefaultOrThemed) {
+            val shapeKey = prefs.get(ThemeManager.PREF_ICON_SHAPE) ?: ""
+            val shapeModel = ShapesProvider.iconShapes.firstOrNull { it.key == shapeKey }
+            val pathString = shapeModel?.pathString
+            if (!pathString.isNullOrEmpty()) {
+                val rawPath = PathParser.createPathFromPathData(pathString)
+                val matrix = Matrix()
+                matrix.setScale(iconBitmapSize / 100f, iconBitmapSize / 100f)
+                val scaledPath = Path()
+                rawPath.transform(matrix, scaledPath)
+                tempCanvas.clipPath(scaledPath)
+            }
+        }
+
+        if (icon is AdaptiveIconDrawable && isDefaultOrThemed) {
+            icon.background?.let { bg ->
+                bg.setBounds(0, 0, iconBitmapSize, iconBitmapSize)
+                bg.draw(tempCanvas)
+            }
+            icon.foreground?.let { fg ->
+                val fgScale = 1.26f
+                val fgSize = (iconBitmapSize * fgScale).toInt()
+                val fgOffset = (iconBitmapSize - fgSize) / 2
+                fg.setBounds(fgOffset, fgOffset, fgOffset + fgSize, fgOffset + fgSize)
+                fg.draw(tempCanvas)
+            }
+        } else {
+            icon.setBounds(offset, offset, offset + size, offset + size)
+            icon.draw(tempCanvas)
+        }
         
         // Draw shadow from icon content
         mShadowGenerator.drawShadow(tempBitmap, canvas)
@@ -70,9 +107,7 @@ open class BaseIconFactory(
         }
 
         // Set NO_SHAPING flag if an icon pack is active
-        val prefs = LauncherPrefs.get(context)
-        val iconPack = prefs.get(LauncherPrefs.ICON_PACK)
-        if (iconPack != null && iconPack != "default" && iconPack != "themed") {
+        if (!isDefaultOrThemed) {
             flags = flags or BitmapInfo.FLAG_NO_SHAPING
         }
 

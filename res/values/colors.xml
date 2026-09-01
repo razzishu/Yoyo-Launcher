@@ -7,6 +7,21 @@
     <color name="spring_loaded_panel_color">#40FFFFFF</color>
     <color name="spring_loaded_highlighted_panel_border_color">#FFF</color>
     <color name="notification_icon_default_color">#757575</color>
+    <!-- Material You Settings Badge Colors -->
+    <color name="badge_color_pink">#FFD8E4</color>
+    <color name="badge_color_orange">#FFDBCF</color>
+    <color name="badge_color_teal">#CCE7E8</color>
+    <color name="badge_color_blue">#D3E3FD</color>
+    <color name="badge_color_purple">#E8DEF8</color>
+    <color name="badge_color_amber">#FFE088</color>
+    <color name="badge_color_red">#FFDAD6</color>
+    <color name="badge_color_green">#C4EED0</color>
+    <color name="badge_color_sky_blue">#C2E7FF</color>
+    <color name="badge_color_indigo">#E1DFFF</color>
+    <color name="badge_color_mint">#C8F0EE</color>
+    <color name="badge_color_peach">#FFDCC2</color>
+    <color name="badge_color_light_green">#D2E8D4</color>
+    <color name="badge_color_lilac">#F3DAFF</color>
     <color name="icon_background">#E0E0E0</color>
     <color name="popup_color_primary_light">#FFF</color>
     <color name="popup_color_secondary_light">#F1F3F4</color>
