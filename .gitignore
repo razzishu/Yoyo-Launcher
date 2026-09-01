@@ -1,17 +1,32 @@
-db_files
-*.iml
-.project
-.classpath
-.project.properties
-gen/
-tests/stress/gen/
-WallpaperPicker/gen/
-WallpaperPicker/.project.properties
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+release/
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
 bin/
+gen/
+out/
+build/
+*/build/
+
+# Android Studio / IntelliJ IDEA
 .idea/
+*.iml
 .gradle/
 local.properties
-gradle/
-build/
-gradlew*
+
+# Log Files
+*.log
+
+# OS generated files
 .DS_Store
+Thumbs.db
