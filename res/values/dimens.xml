@@ -111,6 +111,20 @@
     <!-- All Apps -->
     <dimen name="all_apps_starting_vertical_translate">300dp</dimen>
     <dimen name="all_apps_search_bar_field_height">52dp</dimen>
+    <dimen name="all_apps_search_bar_bottom_margin">12dp</dimen>
+    <dimen name="all_apps_container_corner_radius">28dp</dimen>
+    <dimen name="all_apps_list_corner_radius">16dp</dimen>
+    <dimen name="all_apps_list_margin_x">12dp</dimen>
+    <dimen name="all_apps_list_top_spacing">8dp</dimen>
+    <dimen name="all_apps_list_bottom_spacing">10dp</dimen>
+    <dimen name="all_apps_list_inner_padding_top">4dp</dimen>
+    <dimen name="all_apps_suggestions_corner_radius">16dp</dimen>
+    <dimen name="all_apps_suggestions_margin_x">12dp</dimen>
+    <dimen name="all_apps_suggestions_margin_y">0dp</dimen>
+    <dimen name="all_apps_suggestions_padding_x">4dp</dimen>
+    <dimen name="all_apps_suggestions_padding_y">0dp</dimen>
+    <dimen name="all_apps_suggestions_bottom_gap">4dp</dimen>
+    <dimen name="all_apps_header_top_spacing">8dp</dimen>
     <!-- all_apps_search_bar_field_height / 2 -->
     <dimen name="all_apps_search_bar_content_overlap">26dp</dimen>
     <!-- affects padding above apps lists when tabs and floating header rows are not visible -->
@@ -127,8 +141,7 @@
     <dimen name="all_apps_tabs_indicator_height">2dp</dimen>
     <dimen name="all_apps_header_top_margin">48dp</dimen>
     <dimen name="all_apps_header_top_padding">36dp</dimen>
-    <!-- Additional top padding to add when Floating Searchbar is enabled. -->
-    <dimen name="all_apps_additional_top_padding_floating_search">16dp</dimen>
+    <dimen name="all_apps_additional_top_padding_floating_search">0dp</dimen>
     <!-- influences header protection drawn height below personal/work tabs -->
     <!-- if app icons are appearing above the protection rectangle, or if they are shifted below
          it and cropped at the top, try adjusting this -->

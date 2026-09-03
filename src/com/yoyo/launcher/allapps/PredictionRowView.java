@@ -17,10 +17,15 @@ package com.yoyo.launcher.allapps;
 
 import static com.yoyo.launcher.LauncherSettings.Favorites.CONTAINER_ALL_APPS_PREDICTION;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
 import android.content.Context;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,10 +34,12 @@ import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.android.app.animation.Interpolators;
 import com.yoyo.launcher.BubbleTextView;
 import com.yoyo.launcher.DeviceProfile;
 import com.yoyo.launcher.LauncherPrefs;
 import com.yoyo.launcher.R;
+import com.yoyo.launcher.Utilities;
 import com.yoyo.launcher.model.BgDataModel.FixedContainerItems;
 import com.yoyo.launcher.model.data.ItemInfo;
 import com.yoyo.launcher.model.data.WorkspaceItemInfo;
@@ -62,7 +69,7 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
         super(context, attrs);
         mActivityContext = ActivityContext.lookupContext(context);
         setOrientation(HORIZONTAL);
-        setGravity(Gravity.TOP);
+        setGravity(Gravity.CENTER);
     }
 
     @Override
@@ -74,8 +81,16 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
 
     @Override
     public int getExpectedHeight() {
-        return isVisible() ? (mActivityContext.getDeviceProfile().getAllAppsProfile().getCellHeightPx() 
-                + getPaddingTop() + getPaddingBottom()) : 0;
+        if (!isVisible()) {
+            return 0;
+        }
+        DeviceProfile dp = mActivityContext.getDeviceProfile();
+        int iconSize = dp.getAllAppsProfile().getIconSizePx();
+        int textHeight = Utilities.calculateTextHeight(dp.getAllAppsProfile().getIconTextSizePx());
+        int drawablePadding = dp.getAllAppsProfile().getIconDrawablePaddingPx();
+        int verticalPadding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4,
+                getResources().getDisplayMetrics());
+        return iconSize + drawablePadding + textHeight + (verticalPadding * 2);
     }
 
     @Override
@@ -88,13 +103,100 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
         return shouldDraw();
     }
 
-    @Override
-    public void setVerticalScroll(int scroll, boolean isScrolledOut) {
-        if (!isVisible()) {
+    private ObjectAnimator mHideRevealAnimator;
+
+    public void animateHide() {
+        if (mHideRevealAnimator != null) {
+            mHideRevealAnimator.cancel();
+        }
+        if (getVisibility() != VISIBLE) {
             return;
         }
-        setTranslationY(scroll);
-        setAlpha(isScrolledOut ? 0 : 1);
+        PropertyValuesHolder pvhAlpha = PropertyValuesHolder.ofFloat(View.ALPHA, getAlpha(), 0f);
+        PropertyValuesHolder pvhScaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, getScaleX(), 0.82f);
+        PropertyValuesHolder pvhScaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, getScaleY(), 0.82f);
+        PropertyValuesHolder pvhTransY = PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, getTranslationY(), -Utilities.dpToPx(16));
+
+        mHideRevealAnimator = ObjectAnimator.ofPropertyValuesHolder(this, pvhAlpha, pvhScaleX, pvhScaleY, pvhTransY);
+        mHideRevealAnimator.setDuration(240);
+        mHideRevealAnimator.setInterpolator(Interpolators.FAST_OUT_SLOW_IN);
+        mHideRevealAnimator.addUpdateListener(animation -> {
+            if (mParent != null && mParent.getParent() instanceof View) {
+                ((View) mParent.getParent()).invalidate();
+            }
+        });
+        mHideRevealAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                setVisibility(GONE);
+                mHideRevealAnimator = null;
+            }
+        });
+        mHideRevealAnimator.start();
+    }
+
+    public void animateReveal() {
+        if (mHideRevealAnimator != null) {
+            mHideRevealAnimator.cancel();
+        }
+        if (!shouldDraw()) {
+            return;
+        }
+        setVisibility(VISIBLE);
+        setAlpha(0f);
+        setScaleX(0.82f);
+        setScaleY(0.82f);
+        setTranslationY(-Utilities.dpToPx(16));
+
+        PropertyValuesHolder pvhAlpha = PropertyValuesHolder.ofFloat(View.ALPHA, 0f, 1f);
+        PropertyValuesHolder pvhScaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, 0.82f, 1f);
+        PropertyValuesHolder pvhScaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.82f, 1f);
+        PropertyValuesHolder pvhTransY = PropertyValuesHolder.ofFloat(View.TRANSLATION_Y, -Utilities.dpToPx(16), 0f);
+
+        mHideRevealAnimator = ObjectAnimator.ofPropertyValuesHolder(this, pvhAlpha, pvhScaleX, pvhScaleY, pvhTransY);
+        mHideRevealAnimator.setDuration(320);
+        mHideRevealAnimator.setInterpolator(Interpolators.EMPHASIZED_DECELERATE);
+        mHideRevealAnimator.addUpdateListener(animation -> {
+            if (mParent != null && mParent.getParent() instanceof View) {
+                ((View) mParent.getParent()).invalidate();
+            }
+        });
+        mHideRevealAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                setAlpha(1f);
+                setScaleX(1f);
+                setScaleY(1f);
+                setTranslationY(0f);
+                mHideRevealAnimator = null;
+            }
+        });
+        mHideRevealAnimator.start();
+    }
+
+    @Override
+    public void setVerticalScroll(int scroll, boolean isScrolledOut) {
+        if (!isVisible() && !isScrolledOut) {
+            return;
+        }
+        if (mHideRevealAnimator != null && mHideRevealAnimator.isRunning()) {
+            return;
+        }
+        if (isScrolledOut) {
+            setAlpha(0f);
+            setScaleX(0.85f);
+            setScaleY(0.85f);
+            setTranslationY(scroll);
+        } else {
+            int height = getExpectedHeight();
+            float progress = height > 0 ? Math.min(1f, Math.max(0f, (float) -scroll / height)) : 0f;
+            float smoothAlpha = (float) Math.pow(1f - progress, 1.4);
+            float smoothScale = 1f - (0.15f * progress);
+            setAlpha(smoothAlpha);
+            setScaleX(smoothScale);
+            setScaleY(smoothScale);
+            setTranslationY(scroll);
+        }
     }
 
     @Override
@@ -125,8 +227,7 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int heightSpec = heightMeasureSpec;
         if (isVisible()) {
-            int height = mActivityContext.getDeviceProfile().getAllAppsProfile().getCellHeightPx()
-                    + getPaddingTop() + getPaddingBottom();
+            int height = getExpectedHeight();
             heightSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY);
         }
         super.onMeasure(widthMeasureSpec, heightSpec);
@@ -153,6 +254,8 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
             
             LayoutParams lp = (LayoutParams) icon.getLayoutParams();
             lp.width = 0;
+            lp.height = LayoutParams.WRAP_CONTENT;
+            lp.gravity = Gravity.CENTER;
             lp.weight = 1;
             addView(icon);
         }
@@ -168,8 +271,9 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
 
     public void setInsets(Rect insets) {
         DeviceProfile dp = mActivityContext.getDeviceProfile();
-        setPadding(dp.allAppsLeftRightMargin, getPaddingTop(), dp.allAppsLeftRightMargin,
-                getPaddingBottom());
+        int sideMargin = getResources().getDimensionPixelSize(R.dimen.all_apps_list_margin_x);
+        int sidePadding = Math.max(0, dp.allAppsPadding.left - sideMargin);
+        setPadding(sidePadding, 0, sidePadding, 0);
     }
 
     @Nullable

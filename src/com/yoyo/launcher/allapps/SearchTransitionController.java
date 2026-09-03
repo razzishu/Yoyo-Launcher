@@ -24,12 +24,18 @@ import static com.android.app.animation.Interpolators.clampToProgress;
 import static com.yoyo.launcher.anim.AnimatorListeners.forEndCallback;
 import static com.yoyo.launcher.anim.AnimatorListeners.forSuccessCallback;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.animation.TimeInterpolator;
+import android.animation.ValueAnimator;
 import android.view.View;
 import android.view.animation.Interpolator;
 
+import com.android.app.animation.Interpolators;
+import com.yoyo.launcher.Flags;
 import com.yoyo.launcher.R;
+import com.yoyo.launcher.Utilities;
 
 /** Coordinates the transition between Search and A-Z in All Apps. */
 public class SearchTransitionController extends RecyclerViewAnimationController {
@@ -56,8 +62,20 @@ public class SearchTransitionController extends RecyclerViewAnimationController 
      * @param onEndRunnable will be called when the animation finishes, unless another animation is
      *                      scheduled in the meantime
      */
+    private ValueAnimator mFloatingSearchAnimator;
+
+    @Override
+    public boolean isRunning() {
+        return (mFloatingSearchAnimator != null && mFloatingSearchAnimator.isRunning())
+                || super.isRunning();
+    }
+
     @Override
     protected void animateToState(boolean goingToSearch, long duration, Runnable onEndRunnable) {
+        if (Flags.floatingSearchBar()) {
+            animateSearchFloating(goingToSearch, duration, onEndRunnable);
+            return;
+        }
         super.animateToState(goingToSearch, duration, onEndRunnable);
         if (!goingToSearch) {
             mAnimator.addListener(forSuccessCallback(() -> {
@@ -71,6 +89,113 @@ public class SearchTransitionController extends RecyclerViewAnimationController 
         mAllAppsContainerView.getFloatingHeaderView().maybeSetTabVisibility(VISIBLE);
         mAllAppsContainerView.getAppsRecyclerViewContainer().setVisibility(VISIBLE);
         getRecyclerView().setVisibility(VISIBLE);
+    }
+
+    private void animateSearchFloating(boolean goingToSearch, long duration, Runnable onEndRunnable) {
+        if (mFloatingSearchAnimator != null) {
+            mFloatingSearchAnimator.cancel();
+        }
+
+        SearchRecyclerView searchRV = getRecyclerView();
+        View appsContainer = mAllAppsContainerView.getAppsRecyclerViewContainer();
+        FloatingHeaderView headerView = mAllAppsContainerView.getFloatingHeaderView();
+        PredictionRowView predictionRow = headerView.findFixedRowByType(PredictionRowView.class);
+
+        if (goingToSearch) {
+            if (predictionRow != null) {
+                predictionRow.animateHide();
+            }
+
+            searchRV.setVisibility(VISIBLE);
+            searchRV.setAlpha(0f);
+            searchRV.setTranslationY(Utilities.dpToPx(40));
+            searchRV.setScaleX(0.96f);
+            searchRV.setScaleY(0.96f);
+
+            appsContainer.setVisibility(VISIBLE);
+
+            mFloatingSearchAnimator = ValueAnimator.ofFloat(0f, 1f);
+            mFloatingSearchAnimator.setDuration(300);
+            mFloatingSearchAnimator.setInterpolator(Interpolators.EMPHASIZED_DECELERATE);
+            mFloatingSearchAnimator.addUpdateListener(anim -> {
+                float f = anim.getAnimatedFraction();
+                float searchF = Interpolators.EMPHASIZED_DECELERATE.getInterpolation(f);
+                float appsF = Interpolators.FAST_OUT_SLOW_IN.getInterpolation(f);
+
+                searchRV.setAlpha(searchF);
+                searchRV.setTranslationY(Utilities.dpToPx(40) * (1f - searchF));
+                searchRV.setScaleX(0.96f + 0.04f * searchF);
+                searchRV.setScaleY(0.96f + 0.04f * searchF);
+
+                appsContainer.setAlpha(Math.max(0f, 1f - appsF));
+                appsContainer.setScaleX(1f - 0.04f * appsF);
+                appsContainer.setScaleY(1f - 0.04f * appsF);
+
+                mAllAppsContainerView.invalidate();
+            });
+            mFloatingSearchAnimator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    appsContainer.setVisibility(View.GONE);
+                    searchRV.setAlpha(1f);
+                    searchRV.setTranslationY(0f);
+                    searchRV.setScaleX(1f);
+                    searchRV.setScaleY(1f);
+                    mFloatingSearchAnimator = null;
+                    if (onEndRunnable != null) {
+                        onEndRunnable.run();
+                    }
+                }
+            });
+            mFloatingSearchAnimator.start();
+        } else {
+            appsContainer.setVisibility(VISIBLE);
+            appsContainer.setAlpha(0f);
+            appsContainer.setScaleX(0.96f);
+            appsContainer.setScaleY(0.96f);
+            appsContainer.setTranslationY(0f);
+
+            if (predictionRow != null) {
+                predictionRow.animateReveal();
+            }
+
+            mFloatingSearchAnimator = ValueAnimator.ofFloat(0f, 1f);
+            mFloatingSearchAnimator.setDuration(260);
+            mFloatingSearchAnimator.setInterpolator(Interpolators.EMPHASIZED);
+            mFloatingSearchAnimator.addUpdateListener(anim -> {
+                float f = anim.getAnimatedFraction();
+                float exitF = Interpolators.FAST_OUT_SLOW_IN.getInterpolation(f);
+                float enterF = Interpolators.EMPHASIZED_DECELERATE.getInterpolation(f);
+
+                searchRV.setAlpha(Math.max(0f, 1f - exitF));
+                searchRV.setTranslationY(Utilities.dpToPx(32) * exitF);
+                searchRV.setScaleX(1f - 0.04f * exitF);
+                searchRV.setScaleY(1f - 0.04f * exitF);
+
+                appsContainer.setAlpha(enterF);
+                appsContainer.setScaleX(0.96f + 0.04f * enterF);
+                appsContainer.setScaleY(0.96f + 0.04f * enterF);
+
+                mAllAppsContainerView.invalidate();
+            });
+            mFloatingSearchAnimator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    searchRV.setVisibility(View.GONE);
+                    searchRV.setTranslationY(0f);
+                    searchRV.setScaleX(1f);
+                    searchRV.setScaleY(1f);
+                    appsContainer.setAlpha(1f);
+                    appsContainer.setScaleX(1f);
+                    appsContainer.setScaleY(1f);
+                    mFloatingSearchAnimator = null;
+                    if (onEndRunnable != null) {
+                        onEndRunnable.run();
+                    }
+                }
+            });
+            mFloatingSearchAnimator.start();
+        }
     }
 
     @Override

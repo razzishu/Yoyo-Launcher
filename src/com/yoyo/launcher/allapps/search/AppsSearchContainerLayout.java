@@ -27,6 +27,7 @@ import android.content.Intent;
 import android.graphics.Rect;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
+import android.text.TextUtils;
 import android.text.method.TextKeyListener;
 import android.util.AttributeSet;
 import android.view.KeyEvent;
@@ -35,6 +36,7 @@ import android.view.ViewGroup.MarginLayoutParams;
 
 import com.yoyo.launcher.DeviceProfile;
 import com.yoyo.launcher.ExtendedEditText;
+import com.yoyo.launcher.Flags;
 import com.yoyo.launcher.Insettable;
 import com.yoyo.launcher.R;
 import com.yoyo.launcher.allapps.ActivityAllAppsContainerView;
@@ -47,6 +49,11 @@ import com.yoyo.launcher.util.ApiWrapper;
 import com.yoyo.launcher.views.ActivityContext;
 
 import java.util.ArrayList;
+
+import android.view.WindowInsets;
+import android.view.WindowInsetsAnimation;
+import androidx.annotation.NonNull;
+import java.util.List;
 
 /**
  * Layout to contain the All-apps search UI.
@@ -61,8 +68,9 @@ public class AppsSearchContainerLayout extends ExtendedEditText
 
     private ActivityAllAppsContainerView<?> mAppsView;
 
-    // The amount of pixels to shift down and overlap with the rest of the content.
-    private final int mContentOverlap;
+    private final Rect mInsets = new Rect();
+    private final int mExtraBottomMargin;
+    private WindowInsetsAnimation.Callback mWindowInsetsAnimationCallback;
 
     public AppsSearchContainerLayout(Context context) {
         this(context, null);
@@ -81,20 +89,120 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         mSearchQueryBuilder = new SpannableStringBuilder();
         Selection.setSelection(mSearchQueryBuilder, 0);
 
-        mContentOverlap =
-                getResources().getDimensionPixelSize(R.dimen.all_apps_search_bar_content_overlap);
+        mExtraBottomMargin =
+                getResources().getDimensionPixelSize(R.dimen.all_apps_search_bar_bottom_margin);
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         mAppsView.getAppsStore().addUpdateListener(this);
+        setupWindowInsetsAnimation();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         mAppsView.getAppsStore().removeUpdateListener(this);
+        setWindowInsetsAnimationCallback(null);
+    }
+
+    private void setupWindowInsetsAnimation() {
+        mWindowInsetsAnimationCallback = new WindowInsetsAnimation.Callback(
+                WindowInsetsAnimation.Callback.DISPATCH_MODE_STOP) {
+
+            private float mStartTranslationY;
+            private float mEndTranslationY;
+
+            @Override
+            public void onPrepare(@NonNull WindowInsetsAnimation animation) {
+                if ((animation.getTypeMask() & WindowInsets.Type.ime()) != 0) {
+                    mStartTranslationY = getTranslationY();
+                }
+            }
+
+            @NonNull
+            @Override
+            public WindowInsetsAnimation.Bounds onStart(
+                    @NonNull WindowInsetsAnimation animation,
+                    @NonNull WindowInsetsAnimation.Bounds bounds) {
+                if ((animation.getTypeMask() & WindowInsets.Type.ime()) != 0) {
+                    mEndTranslationY = calculateImeTranslationY(getRootWindowInsets());
+                    setTranslationY(mStartTranslationY);
+                }
+                return super.onStart(animation, bounds);
+            }
+
+            @NonNull
+            @Override
+            public WindowInsets onProgress(
+                    @NonNull WindowInsets insets,
+                    @NonNull List<WindowInsetsAnimation> runningAnimations) {
+                WindowInsetsAnimation imeAnim = null;
+                for (WindowInsetsAnimation anim : runningAnimations) {
+                    if ((anim.getTypeMask() & WindowInsets.Type.ime()) != 0) {
+                        imeAnim = anim;
+                        break;
+                    }
+                }
+                if (imeAnim != null) {
+                    float fraction = imeAnim.getInterpolatedFraction();
+                    float currentTranslationY =
+                            com.yoyo.launcher.Utilities.mapRange(fraction, mStartTranslationY, mEndTranslationY);
+                    setTranslationY(currentTranslationY);
+                    if (mAppsView != null) {
+                        int imeBottom = insets.getInsets(WindowInsets.Type.ime()).bottom;
+                        mAppsView.updateSearchRecyclerViewImePadding(imeBottom);
+                    }
+                }
+                return insets;
+            }
+
+            @Override
+            public void onEnd(@NonNull WindowInsetsAnimation animation) {
+                if ((animation.getTypeMask() & WindowInsets.Type.ime()) != 0) {
+                    setTranslationY(mEndTranslationY);
+                    if (mAppsView != null) {
+                        WindowInsets rootInsets = getRootWindowInsets();
+                        int imeBottom = rootInsets != null
+                                ? rootInsets.getInsets(WindowInsets.Type.ime()).bottom : 0;
+                        mAppsView.updateSearchRecyclerViewImePadding(imeBottom);
+                    }
+                }
+            }
+        };
+        setWindowInsetsAnimationCallback(mWindowInsetsAnimationCallback);
+    }
+
+    @Override
+    public WindowInsets onApplyWindowInsets(WindowInsets insets) {
+        float targetY = calculateImeTranslationY(insets);
+        setTranslationY(targetY);
+        if (mAppsView != null) {
+            int imeBottom = insets.getInsets(WindowInsets.Type.ime()).bottom;
+            mAppsView.updateSearchRecyclerViewImePadding(imeBottom);
+        }
+        return super.onApplyWindowInsets(insets);
+    }
+
+    private float calculateImeTranslationY(WindowInsets insets) {
+        if (insets == null) {
+            return 0f;
+        }
+        int imeBottom = insets.getInsets(WindowInsets.Type.ime()).bottom;
+        int navBottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+        if (imeBottom > navBottom) {
+            return -(imeBottom - navBottom);
+        }
+        return 0f;
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        if (h != oldh && mAppsView != null) {
+            mAppsView.rebindAdapters(false);
+        }
     }
 
     @Override
@@ -126,8 +234,6 @@ public class AppsSearchContainerLayout extends ExtendedEditText
         int expectedLeft = parent.getPaddingLeft() + (availableWidth - myWidth) / 2;
         int shift = expectedLeft - left;
         setTranslationX(shift);
-
-        offsetTopAndBottom(mContentOverlap);
     }
 
     @Override
@@ -151,6 +257,18 @@ public class AppsSearchContainerLayout extends ExtendedEditText
     @Override
     public void focusSearchField() {
         mSearchBarController.focusSearchField();
+    }
+
+    @Override
+    protected void onFocusChanged(boolean gainFocus, int direction, Rect previouslyFocusedRect) {
+        super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+        if (mAppsView != null && Flags.floatingSearchBar()) {
+            if (gainFocus) {
+                mAppsView.animateToSearchState(true);
+            } else if (TextUtils.isEmpty(getText())) {
+                mAppsView.animateToSearchState(false);
+            }
+        }
     }
 
     @Override
@@ -194,9 +312,13 @@ public class AppsSearchContainerLayout extends ExtendedEditText
 
     @Override
     public void setInsets(Rect insets) {
+        mInsets.set(insets);
         MarginLayoutParams mlp = (MarginLayoutParams) getLayoutParams();
-        mlp.topMargin = insets.top;
-        requestLayout();
+        if (mlp != null) {
+            mlp.topMargin = 0;
+            mlp.bottomMargin = insets.bottom + mExtraBottomMargin;
+            requestLayout();
+        }
     }
 
     @Override

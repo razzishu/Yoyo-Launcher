@@ -42,6 +42,7 @@ public class SearchRecyclerView extends AllAppsRecyclerView {
     public SearchRecyclerView(Context context, AttributeSet attrs, int defStyleAttr,
             int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+        setItemAnimator(new androidx.recyclerview.widget.DefaultItemAnimator());
     }
 
     @Override

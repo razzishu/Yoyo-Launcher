@@ -22,4 +22,7 @@
     android:clipChildren="true"
     android:clipToPadding="false"
     android:focusable="false"
-    android:saveEnabled="false" />
+    android:saveEnabled="false"
+    android:background="@drawable/bg_all_apps_container"
+    android:outlineProvider="background"
+    android:clipToOutline="true" />

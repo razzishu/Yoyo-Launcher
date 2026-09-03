@@ -19,6 +19,9 @@
 
     <!-- Attributes used for launcher theme -->
     <attr name="allAppsScrimColor" format="color" />
+    <attr name="allAppsContainerColor" format="color" />
+    <attr name="allAppsSuggestionsColor" format="color" />
+    <attr name="allAppsListColor" format="color" />
     <attr name="allappsHeaderProtectionColor" format="color" />
     <attr name="allAppsNavBarScrimColor" format="color" />
     <attr name="allAppsSearchTextColor" format="color"/>

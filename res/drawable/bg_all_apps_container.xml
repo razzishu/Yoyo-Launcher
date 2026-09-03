@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/allAppsContainerColor" />
+    <corners
+        android:topLeftRadius="@dimen/all_apps_container_corner_radius"
+        android:topRightRadius="@dimen/all_apps_container_corner_radius"
+        android:bottomLeftRadius="0dp"
+        android:bottomRightRadius="0dp" />
+</shape>

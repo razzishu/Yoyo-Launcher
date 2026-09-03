@@ -55,23 +55,12 @@ public class PredictionDividerView extends View implements FloatingHeaderRow {
 
     @Override
     public int getExpectedHeight() {
-        return shouldDraw() ? (int) (24 * getResources().getDisplayMetrics().density) : 0;
+        return 0;
     }
 
     @Override
     public boolean shouldDraw() {
-        if (mParent == null && getParent() instanceof FloatingHeaderView) {
-            mParent = (FloatingHeaderView) getParent();
-        }
-        if (mParent == null) {
-            return false;
-        }
-        try {
-            PredictionRowView predictionRow = mParent.findFixedRowByType(PredictionRowView.class);
-            return predictionRow != null && predictionRow.shouldDraw();
-        } catch (Exception e) {
-            return false;
-        }
+        return false;
     }
 
     @Override

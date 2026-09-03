@@ -18,11 +18,13 @@
         android:id="@+id/prediction_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:visibility="gone" />
-
-    <com.yoyo.launcher.allapps.PredictionDividerView
-        android:id="@+id/prediction_divider"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_marginStart="0dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginTop="0dp"
+        android:layout_marginBottom="0dp"
+        android:paddingStart="@dimen/all_apps_suggestions_padding_x"
+        android:paddingEnd="@dimen/all_apps_suggestions_padding_x"
+        android:paddingTop="@dimen/all_apps_suggestions_padding_y"
+        android:paddingBottom="@dimen/all_apps_suggestions_padding_y"
         android:visibility="gone" />
 </merge>

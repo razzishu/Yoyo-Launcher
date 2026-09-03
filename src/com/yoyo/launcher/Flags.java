@@ -34,7 +34,7 @@ public final class Flags {
     public static boolean injectableModelItems() { return false; }
     public static boolean useNewIconForArchivedApps() { return false; }
     public static boolean enableLauncherBrMetricsFixed() { return false; }
-    public static boolean floatingSearchBar() { return false; }
+    public static boolean floatingSearchBar() { return true; }
     public static boolean modelRepository() { return false; }
     public static boolean showFilesOnHomeScreen() { return false; }
     public static boolean enableFallbackOverviewInWindow() { return false; }
