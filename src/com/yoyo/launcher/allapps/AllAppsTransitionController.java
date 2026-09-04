@@ -242,10 +242,18 @@ public class AllAppsTransitionController
         getAppsViewProgressTranslationY().setValue(mProgress * shiftRange);
         mLauncher.onAllAppsTransition(1 - progress);
 
-        boolean hasScrim = progress < NAV_BAR_COLOR_FORCE_UPDATE_THRESHOLD
-                && mLauncher.getAppsView().getNavBarScrimHeight() > 0;
-        mLauncher.getSystemUiController().updateUiState(
-                UI_STATE_ALL_APPS, hasScrim ? mNavScrimFlag : 0);
+        boolean inAllApps = progress < 0.3f;
+        if (inAllApps && mLauncher.getAppsView() != null) {
+            int flags = mLauncher.getAppsView().getAdaptiveSystemUiFlags();
+            boolean hasScrim = progress < NAV_BAR_COLOR_FORCE_UPDATE_THRESHOLD
+                    && mLauncher.getAppsView().getNavBarScrimHeight() > 0;
+            if (hasScrim) {
+                flags = (flags & ~(FLAG_LIGHT_NAV | FLAG_DARK_NAV)) | mNavScrimFlag;
+            }
+            mLauncher.getSystemUiController().updateUiState(UI_STATE_ALL_APPS, flags);
+        } else {
+            mLauncher.getSystemUiController().updateUiState(UI_STATE_ALL_APPS, 0);
+        }
     }
 
     public float getProgress() {

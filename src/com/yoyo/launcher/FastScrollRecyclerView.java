@@ -142,9 +142,14 @@ public abstract class FastScrollRecyclerView extends RecyclerView  {
             return false;
         }
 
+        // If the RecyclerView is currently flinging or settling, do NOT allow container to scroll down.
+        if (getScrollState() == SCROLL_STATE_SETTLING) {
+            return false;
+        }
+
         // IF scroller is at the very top OR there is no scroll bar because there is probably not
         // enough items to scroll, THEN it's okay for the container to be pulled down.
-        return computeVerticalScrollOffset() == 0;
+        return computeVerticalScrollOffset() <= 0;
     }
 
     /**

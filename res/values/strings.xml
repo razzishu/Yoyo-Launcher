@@ -611,4 +611,9 @@
     <string name="pref_launcher_layout_title" translatable="false">Launcher layout</string>
     <string name="pref_launcher_layout_summary" translatable="false">Number of columns on the home screen</string>
     <string name="pref_icon_pack_summary" translatable="false">Change the icon pack and shapes</string>
+
+    <string name="drawer_opacity_title">App Drawer Opacity</string>
+    <string name="drawer_opacity_summary">Adjust background translucency</string>
+    <string name="drawer_opacity_min">Transparent (0%)</string>
+    <string name="drawer_opacity_max">Opaque (100%)</string>
 </resources>

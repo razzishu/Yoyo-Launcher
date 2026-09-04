@@ -18,6 +18,7 @@ package com.yoyo.launcher.allapps;
 import static com.yoyo.launcher.Flags.clearScrimOnReset;
 import static com.yoyo.launcher.Flags.enableExpandingPauseWorkButton;
 import static com.yoyo.launcher.LauncherPrefs.ALLAPPS_THEMED_ICONS;
+import static com.yoyo.launcher.LauncherPrefs.DRAWER_OPACITY;
 import static com.yoyo.launcher.LauncherPrefs.SHOW_DESKTOP_LABELS;
 import static com.yoyo.launcher.LauncherPrefs.SHOW_DRAWER_LABELS;
 import static com.yoyo.launcher.LauncherPrefs.THEMED_ICONS_HOMESCREEN_ONLY;
@@ -62,6 +63,7 @@ import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowInsets;
 import android.widget.Button;
+import android.widget.EdgeEffect;
 import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
@@ -80,10 +82,13 @@ import com.yoyo.launcher.DropTarget.DragObject;
 import com.yoyo.launcher.Flags;
 import com.yoyo.launcher.Insettable;
 import com.yoyo.launcher.InsettableFrameLayout;
+import com.yoyo.launcher.Launcher;
+import com.yoyo.launcher.LauncherState;
 import com.yoyo.launcher.LauncherPrefChangeListener;
 import com.yoyo.launcher.LauncherPrefs;
 import com.yoyo.launcher.R;
 import com.yoyo.launcher.Utilities;
+import com.yoyo.launcher.util.SystemUiController;
 import com.yoyo.launcher.allapps.BaseAllAppsAdapter.AdapterItem;
 import com.yoyo.launcher.allapps.search.AllAppsSearchUiDelegate;
 import com.yoyo.launcher.allapps.search.SearchAdapterProvider;
@@ -201,6 +206,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     private Drawable mCardBackground;
     private Drawable mSuggestionsCardBackground;
     private int mCardTop = 0;
+    private int mDrawerOpacity = 85;
 
     public ActivityAllAppsContainerView(Context context) {
         this(context, null);
@@ -346,6 +352,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
 
         updateBackgroundVisibility(mActivityContext.getDeviceProfile());
         mSearchUiManager.initializeSearch(this);
+        updateDrawerOpacity();
     }
 
     @Override
@@ -356,6 +363,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         }
         mActivityContext.addOnDeviceProfileChangeListener(this);
         LauncherPrefs.get(getContext()).addListener(mThemePrefListener, ALLAPPS_THEMED_ICONS, THEMED_ICONS_HOMESCREEN_ONLY);
+        LauncherPrefs.get(getContext()).addListener(mOpacityPrefListener, DRAWER_OPACITY);
+        updateDrawerOpacity();
     }
 
     private final LauncherPrefChangeListener mThemePrefListener = key -> {
@@ -365,6 +374,87 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         }
     };
 
+    private final LauncherPrefChangeListener mOpacityPrefListener = key -> {
+        if (DRAWER_OPACITY.getSharedPrefKey().equals(key)) {
+            updateDrawerOpacity();
+        }
+    };
+
+    public int getDrawerOpacity() {
+        return mDrawerOpacity;
+    }
+
+    public float getCommonBgAlpha() {
+        float p = mDrawerOpacity / 100.0f;
+        if (p <= 0f) return 0f;
+        if (p >= 1f) return 1f;
+        return (float) Math.pow(p, 1.15) * 0.95f;
+    }
+
+    public float getCardBgAlpha() {
+        float p = mDrawerOpacity / 100.0f;
+        if (p <= 0f) return 0f;
+        if (p >= 1f) return 1f;
+        return Math.min(1.0f, (float) Math.sqrt(p) * 0.92f + 0.08f * p);
+    }
+
+    public float getSearchBgAlpha() {
+        float p = mDrawerOpacity / 100.0f;
+        if (p <= 0f) return 0f;
+        if (p >= 1f) return 1f;
+        return Math.min(1.0f, (float) Math.sqrt(p) * 0.95f + 0.05f * p);
+    }
+
+    public int getAdaptiveSystemUiFlags() {
+        Context context = getContext();
+        int drawerBgColor = Themes.getAttrColor(context, R.attr.allAppsContainerColor);
+        boolean isWorkspaceDarkText = Themes.getAttrBoolean(context, R.attr.isWorkspaceDarkText);
+        int wallpaperColor = isWorkspaceDarkText ? Color.WHITE : Color.BLACK;
+
+        float commonAlpha = getCommonBgAlpha();
+        int effectiveStatusColor = ColorUtils.compositeColors(
+                ColorUtils.setAlphaComponent(drawerBgColor, Math.round(commonAlpha * 255)),
+                wallpaperColor
+        );
+        boolean isStatusLight = ColorUtils.calculateLuminance(effectiveStatusColor) > 0.45;
+
+        int navColor = Themes.getAttrColor(context, R.attr.allAppsContainerColor);
+        int effectiveNavColor = ColorUtils.compositeColors(
+                ColorUtils.setAlphaComponent(navColor, Math.round(commonAlpha * 255)),
+                wallpaperColor
+        );
+        boolean isNavLight = ColorUtils.calculateLuminance(effectiveNavColor) > 0.45;
+
+        return (isStatusLight ? SystemUiController.FLAG_LIGHT_STATUS : SystemUiController.FLAG_DARK_STATUS)
+                | (isNavLight ? SystemUiController.FLAG_LIGHT_NAV : SystemUiController.FLAG_DARK_NAV);
+    }
+
+    public void updateDrawerOpacity() {
+        mDrawerOpacity = LauncherPrefs.get(getContext()).get(DRAWER_OPACITY);
+        float commonAlpha = getCommonBgAlpha();
+        int commonAlpha255 = Math.round(commonAlpha * 255);
+
+        Drawable bg = getBackground();
+        if (bg != null) {
+            bg.mutate().setAlpha(commonAlpha255);
+        }
+
+        float searchAlpha = getSearchBgAlpha();
+        if (mSearchContainer != null && mSearchContainer.getBackground() != null) {
+            mSearchContainer.getBackground().mutate().setAlpha(Math.round(searchAlpha * 255));
+        }
+
+        if (mActivityContext instanceof Launcher) {
+            Launcher launcher = (Launcher) mActivityContext;
+            if (launcher.isInState(LauncherState.ALL_APPS)) {
+                launcher.getSystemUiController().updateUiState(
+                        SystemUiController.UI_STATE_ALL_APPS, getAdaptiveSystemUiFlags());
+            }
+        }
+
+        invalidate();
+    }
+
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
@@ -373,6 +463,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         }
         mActivityContext.removeOnDeviceProfileChangeListener(this);
         LauncherPrefs.get(getContext()).removeListener(mThemePrefListener, ALLAPPS_THEMED_ICONS, THEMED_ICONS_HOMESCREEN_ONLY);
+        LauncherPrefs.get(getContext()).removeListener(mOpacityPrefListener, DRAWER_OPACITY);
     }
 
     public SearchUiManager getSearchUiManager() {
@@ -470,6 +561,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         if (rv == null) {
             return true;
         }
+        if (rv.getScrollState() == RecyclerView.SCROLL_STATE_SETTLING) {
+            return false;
+        }
         if (rv.getScrollbar() != null
                 && rv.getScrollbar().getThumbOffsetY() >= 0
                 && dragLayer.isEventOverView(rv.getScrollbar(), ev)) {
@@ -480,6 +574,19 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             return true;
         }
         return rv.shouldContainerScroll(ev, dragLayer);
+    }
+
+    @Override
+    public RecyclerView.EdgeEffectFactory createEdgeEffectFactory() {
+        return new RecyclerView.EdgeEffectFactory() {
+            @NonNull
+            @Override
+            protected EdgeEffect createEdgeEffect(@NonNull RecyclerView view, int direction) {
+                EdgeEffect effect = super.createEdgeEffect(view, direction);
+                effect.setColor(Themes.getAttrColor(view.getContext(), R.attr.allAppsContainerColor));
+                return effect;
+            }
+        };
     }
 
     /**
@@ -862,18 +969,18 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     }
 
     protected void updateHeaderScroll(int scrolledOffset) {
-        float prog = Utilities.boundToRange((float) scrolledOffset / mHeaderThreshold, 0f, 1f);
+        int clampedOffset = Math.max(0, scrolledOffset);
+        float prog = Utilities.boundToRange((float) clampedOffset / mHeaderThreshold, 0f, 1f);
         int headerColor = getHeaderColor(prog);
         int tabsAlpha = mHeader.getPeripheralProtectionHeight(/* expectedHeight */ false) == 0 ? 0
                 : (int) (Utilities.boundToRange(
-                        (scrolledOffset + mHeader.mSnappedScrolledY) / mHeaderThreshold, 0f, 1f)
+                        (clampedOffset + mHeader.mSnappedScrolledY) / mHeaderThreshold, 0f, 1f)
                         * 255);
         if (headerColor != mHeaderColor || mTabsProtectionAlpha != tabsAlpha) {
             mHeaderColor = headerColor;
             mTabsProtectionAlpha = tabsAlpha;
             invalidateHeader();
         }
-        getSearchView().setBackgroundResource(R.drawable.bg_all_apps_searchbox);
         if (mSearchUiManager.getEditText() == null) {
             return;
         }
@@ -882,9 +989,9 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mSearchUiManager.setBackgroundVisibility(true, 1f);
         } else {
             boolean bgVisible = mSearchUiManager.getBackgroundVisibility();
-            if (scrolledOffset == 0 && !isSearching()) {
+            if (clampedOffset == 0 && !isSearching()) {
                 bgVisible = true;
-            } else if (scrolledOffset > mHeaderThreshold) {
+            } else if (clampedOffset > mHeaderThreshold) {
                 bgVisible = false;
             }
             mSearchUiManager.setBackgroundVisibility(bgVisible, 1 - prog);
@@ -895,7 +1002,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         if (!mActivityContext.getDeviceProfile().shouldShowAllAppsOnSheet()) {
             return ColorUtils.setAlphaComponent(
                     ColorUtils.blendARGB(mScrimColor, mHeaderProtectionColor, blendRatio),
-                    (int) (mSearchContainer.getAlpha() * 255));
+                    (int) (mSearchContainer.getAlpha() * 255 * getCommonBgAlpha()));
         }
         return isBackgroundBlurEnabled()
                 ? ColorUtils.setAlphaComponent(mHeaderProtectionColor, (int) (blendRatio * 255))
@@ -1353,6 +1460,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         if (isSearchBarFloating()) {
             View rvContainer = getAppsRecyclerViewContainer();
             SearchRecyclerView searchRV = getSearchRecyclerView();
+            float cardAlpha = getCardBgAlpha();
 
             // 1. Suggestions Row Card
             if (mSuggestionsCardBackground != null && mHeader != null
@@ -1373,7 +1481,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                         int halfH = (int) (predView.getHeight() * scale / 2f);
 
                         mSuggestionsCardBackground.setBounds(centerX - halfW, centerY - halfH, centerX + halfW, centerY + halfH);
-                        mSuggestionsCardBackground.setAlpha((int) (255 * predView.getAlpha()));
+                        mSuggestionsCardBackground.setAlpha((int) (255 * cardAlpha * predView.getAlpha()));
                         mSuggestionsCardBackground.draw(canvas);
                     }
                 }
@@ -1391,7 +1499,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 int halfH = (int) ((rvContainer.getBottom() - mCardTop) * scale / 2f);
 
                 mCardBackground.setBounds(centerX - halfW, centerY - halfH, centerX + halfW, centerY + halfH);
-                mCardBackground.setAlpha((int) (255 * rvContainer.getAlpha()));
+                mCardBackground.setAlpha((int) (255 * cardAlpha * rvContainer.getAlpha()));
                 mCardBackground.draw(canvas);
             }
 
@@ -1412,7 +1520,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
                 int halfH = (int) ((searchBottom - searchTop) * scale / 2f);
 
                 mCardBackground.setBounds(centerX - halfW, centerY - halfH, centerX + halfW, centerY + halfH);
-                mCardBackground.setAlpha((int) (255 * searchRV.getAlpha()));
+                mCardBackground.setAlpha((int) (255 * cardAlpha * searchRV.getAlpha()));
                 mCardBackground.draw(canvas);
             }
         }
@@ -1659,7 +1767,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         final float bottomWithOffset = panel.getBottom() + bottomOffsetPx;
         // Draw full background panel if presenting on a sheet.
         int bottomSheetBackgroundColor = getBottomSheetBackgroundColor();
-        float bottomSheetBackgroundAlpha = Color.alpha(bottomSheetBackgroundColor) / 255.0f;
+        float bottomSheetBackgroundAlpha = (Color.alpha(bottomSheetBackgroundColor) / 255.0f) * getCommonBgAlpha();
         if (hasBottomSheet) {
             mHeaderPaint.setColor(bottomSheetBackgroundColor);
             mHeaderPaint.setAlpha((int) (bottomSheetBackgroundAlpha * 255));

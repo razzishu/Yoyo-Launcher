@@ -70,7 +70,7 @@ public class FloatingHeaderView extends LinearLayout implements
                         mAnimator.cancel();
                     }
 
-                    int current = -mCurrentRV.computeVerticalScrollOffset();
+                    int current = -Math.max(0, mCurrentRV.computeVerticalScrollOffset());
                     boolean headerCollapsed = mHeaderCollapsed;
                     moved(current);
                     applyVerticalMove();
@@ -128,6 +128,7 @@ public class FloatingHeaderView extends LinearLayout implements
                 .getDimensionPixelSize(R.dimen.all_apps_header_top_adjustment);
         mTabsAdditionalPaddingBottom = context.getResources()
                 .getDimensionPixelSize(R.dimen.all_apps_header_bottom_adjustment);
+        mAnimator.addUpdateListener(this);
     }
 
     @Override
@@ -316,8 +317,9 @@ public class FloatingHeaderView extends LinearLayout implements
     }
 
     private void moved(final int currentScrollY) {
+        final int clampedScrollY = Math.min(0, currentScrollY);
         // if we are snapping we shouldn't translate
-        if (mSnappedScrolledY != -mMaxTranslation && !canSnapAt(currentScrollY)) {
+        if (mSnappedScrolledY != -mMaxTranslation && !canSnapAt(clampedScrollY)) {
             return;
         }
 
@@ -332,19 +334,19 @@ public class FloatingHeaderView extends LinearLayout implements
         }
 
         if (mTabsHidden) {
-            if (currentScrollY <= -mMaxTranslation) {
+            if (clampedScrollY <= -mMaxTranslation) {
                 mHeaderCollapsed = true;
             } else {
                 mHeaderCollapsed = false;
             }
-            mTranslationY = currentScrollY;
+            mTranslationY = clampedScrollY;
         } else {
-            mTranslationY = currentScrollY - mSnappedScrolledY - mMaxTranslation;
+            mTranslationY = clampedScrollY - mSnappedScrolledY - mMaxTranslation;
 
             // update state vars
             if (mTranslationY >= 0) { // expanded: must not move down further
                 mTranslationY = 0;
-                mSnappedScrolledY = currentScrollY - mMaxTranslation;
+                mSnappedScrolledY = clampedScrollY - mMaxTranslation;
             } else if (mTranslationY <= -mMaxTranslation) { // hide or stay hidden
                 mHeaderCollapsed = true;
                 mSnappedScrolledY = -mMaxTranslation;
@@ -353,8 +355,8 @@ public class FloatingHeaderView extends LinearLayout implements
     }
 
     protected void applyVerticalMove() {
-        int uncappedTranslationY = mTranslationY;
-        mTranslationY = Math.max(mTranslationY, -mMaxTranslation);
+        int uncappedTranslationY = Math.min(0, mTranslationY);
+        mTranslationY = Math.min(0, Math.max(mTranslationY, -mMaxTranslation));
 
         if (mFloatingRowsCollapsed || uncappedTranslationY < mTranslationY - getPaddingTop()) {
             // we hide it completely if already capped (for opening search anim)
@@ -375,18 +377,18 @@ public class FloatingHeaderView extends LinearLayout implements
             clipTop += mTabsAdditionalPaddingTop;
         }
 
-            int top = getTop() > 0 ? getTop()
-                    : ActivityContext.lookupContext(getContext()).getDeviceProfile().getInsets().top;
+        int top = getTop() > 0 ? getTop()
+                : ActivityContext.lookupContext(getContext()).getDeviceProfile().getInsets().top;
         int gap = getResources().getDimensionPixelSize(R.dimen.all_apps_suggestions_bottom_gap);
         int initialCardTop = mFloatingRowsHeight > 0 ? (top + mFloatingRowsHeight + gap) : top;
-        int currentCardTop = Math.max(top, initialCardTop + mTranslationY);
+        int currentCardTop = Math.min(initialCardTop, Math.max(top, initialCardTop + mTranslationY));
 
         if (getParent() instanceof ActivityAllAppsContainerView && Flags.floatingSearchBar()) {
             ((ActivityAllAppsContainerView<?>) getParent()).setCardTop(currentCardTop);
         }
 
         mRVClip.left = 0;
-        mRVClip.top = Flags.floatingSearchBar() ? (currentCardTop - top) : (mTabsHidden || mFloatingRowsCollapsed ? clipTop : 0);
+        mRVClip.top = Flags.floatingSearchBar() ? Math.max(0, currentCardTop - top) : (mTabsHidden || mFloatingRowsCollapsed ? clipTop : 0);
         mHeaderClip.top = clipTop;
         // clipping on a draw might cause additional redraw
         setClipBounds(mHeaderClip);
@@ -433,19 +435,18 @@ public class FloatingHeaderView extends LinearLayout implements
         }
         if (animate) {
             mAnimator.setIntValues(mTranslationY, 0);
-            mAnimator.addUpdateListener(this);
             mAnimator.setDuration(150);
             mAnimator.start();
         } else {
             mTranslationY = 0;
             applyVerticalMove();
-        }
-        if (getParent() instanceof ActivityAllAppsContainerView && Flags.floatingSearchBar()) {
+            if (getParent() instanceof ActivityAllAppsContainerView && Flags.floatingSearchBar()) {
                 int top = getTop() > 0 ? getTop()
-                    : ActivityContext.lookupContext(getContext()).getDeviceProfile().getInsets().top;
-            int gap = getResources().getDimensionPixelSize(R.dimen.all_apps_suggestions_bottom_gap);
-            int initialCardTop = mFloatingRowsHeight > 0 ? (top + mFloatingRowsHeight + gap) : top;
-            ((ActivityAllAppsContainerView<?>) getParent()).setCardTop(initialCardTop);
+                        : ActivityContext.lookupContext(getContext()).getDeviceProfile().getInsets().top;
+                int gap = getResources().getDimensionPixelSize(R.dimen.all_apps_suggestions_bottom_gap);
+                int initialCardTop = mFloatingRowsHeight > 0 ? (top + mFloatingRowsHeight + gap) : top;
+                ((ActivityAllAppsContainerView<?>) getParent()).setCardTop(initialCardTop);
+            }
         }
         mHeaderCollapsed = false;
         mSnappedScrolledY = -mMaxTranslation;

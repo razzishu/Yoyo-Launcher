@@ -182,20 +182,21 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
         if (mHideRevealAnimator != null && mHideRevealAnimator.isRunning()) {
             return;
         }
+        int clampedScroll = Math.min(0, scroll);
         if (isScrolledOut) {
             setAlpha(0f);
             setScaleX(0.85f);
             setScaleY(0.85f);
-            setTranslationY(scroll);
+            setTranslationY(clampedScroll);
         } else {
             int height = getExpectedHeight();
-            float progress = height > 0 ? Math.min(1f, Math.max(0f, (float) -scroll / height)) : 0f;
+            float progress = height > 0 ? Math.min(1f, Math.max(0f, (float) -clampedScroll / height)) : 0f;
             float smoothAlpha = (float) Math.pow(1f - progress, 1.4);
             float smoothScale = 1f - (0.15f * progress);
             setAlpha(smoothAlpha);
             setScaleX(smoothScale);
             setScaleY(smoothScale);
-            setTranslationY(scroll);
+            setTranslationY(clampedScroll);
         }
     }
 

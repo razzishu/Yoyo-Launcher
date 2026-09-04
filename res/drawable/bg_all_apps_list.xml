@@ -2,6 +2,6 @@
 <!-- Copyright (C) 2026 The Android Open Source Project -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/materialColorSurfaceContainerLow" />
+    <solid android:color="?attr/allAppsListColor" />
     <corners android:radius="@dimen/all_apps_list_corner_radius" />
 </shape>

@@ -52,15 +52,7 @@ public class SpringRelativeLayout extends RelativeLayout {
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
-        if (!mEdgeGlowTop.isFinished()) {
-            final int restoreCount = canvas.save();
-            canvas.translate(0, 0);
-            mEdgeGlowTop.setSize(getWidth(), getHeight());
-            if (mEdgeGlowTop.draw(canvas)) {
-                postInvalidateOnAnimation();
-            }
-            canvas.restoreToCount(restoreCount);
-        }
+        // Do not draw mEdgeGlowTop on container to prevent pulling down and exposing wallpaper underneath
         if (!mEdgeGlowBottom.isFinished()) {
             final int restoreCount = canvas.save();
             final int width = getWidth();
@@ -101,9 +93,6 @@ public class SpringRelativeLayout extends RelativeLayout {
 
         @NonNull @Override
         protected EdgeEffect createEdgeEffect(RecyclerView view, int direction) {
-            if (direction == DIRECTION_TOP) {
-                return new EdgeEffectProxy(getContext(), mEdgeGlowTop);
-            }
             return super.createEdgeEffect(view, direction);
         }
     }

@@ -733,6 +733,9 @@ public class SettingsActivity extends FragmentActivity
                     });
                     break;
 
+                case "pref_drawer_opacity":
+                    return true;
+
                 case "pref_drawer_open_keyboard":
                     applyCardStyle(preference, R.drawable.ic_keyboard, R.color.badge_color_light_green);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {

@@ -253,6 +253,7 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
         @JvmField val THEMED_ICONS_HOMESCREEN_ONLY = backedUpItem("pref_themed_icons_homescreen_only", false)
         @JvmField val ENABLE_MINUS_ONE = backedUpItem("pref_enable_minus_one", true)
         @JvmField val DRAWER_OPEN_KEYBOARD = backedUpItem("pref_drawer_open_keyboard", false)
+        @JvmField val DRAWER_OPACITY = backedUpItem("pref_drawer_opacity", 85)
         @JvmField val SHOW_DESKTOP_LABELS = backedUpItem("pref_desktop_show_labels", true)
         @JvmField val SHOW_DRAWER_LABELS = backedUpItem("pref_drawer_show_labels", true)
         @JvmField val SUGGESTIONS_ALL_APPS = backedUpItem("pref_suggestions_all_apps", true)

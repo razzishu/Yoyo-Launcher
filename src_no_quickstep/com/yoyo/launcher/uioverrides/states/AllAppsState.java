@@ -108,7 +108,7 @@ public class AllAppsState extends LauncherState {
         return new ScrimColors(
                 /* backgroundColor */ launcher.getDeviceProfile().getDeviceProperties().isTablet()
                 ? launcher.getResources().getColor(R.color.widgets_picker_scrim)
-                : Themes.getAttrColor(launcher, R.attr.allAppsScrimColor),
+                : Color.TRANSPARENT,
                 /* foregroundColor */ Color.TRANSPARENT);
     }
 }
