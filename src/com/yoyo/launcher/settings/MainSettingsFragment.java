@@ -33,7 +33,7 @@ public class MainSettingsFragment extends Fragment {
                     versionPill.setText("v" + versionName);
                 }
             } catch (Exception e) {
-                versionPill.setText("v1.0.3-beta");
+                versionPill.setText("v1.0.10beta");
             }
         }
 

@@ -53,7 +53,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:background="@drawable/bg_settings_tag_pill"
-                        android:text="v1.0.3-beta"
+                        android:text="v1.0.10beta"
                         android:textSize="11sp"
                         android:textStyle="bold"
                         android:textColor="@color/materialColorPrimary" />
