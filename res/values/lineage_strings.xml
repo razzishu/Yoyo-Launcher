@@ -73,4 +73,7 @@
     <string name="suggestions_all_apps_summary">Suggested apps at the top of the app drawer</string>
     <string name="suggestions_usage_stats_title">Usage access required</string>
     <string name="suggestions_usage_stats_summary">Tap to grant permission for app predictions</string>
+    <string name="usage_access_dialog_title">Usage Access Required</string>
+    <string name="usage_access_dialog_message">To show intelligent app suggestions based on your daily app usage, YoYo Launcher needs Usage Access permission. Please grant permission in System Settings.</string>
+    <string name="grant_permission">Grant</string>
 </resources>

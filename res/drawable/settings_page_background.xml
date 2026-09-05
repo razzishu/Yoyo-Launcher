@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <gradient
-        android:angle="135"
-        android:startColor="?android:attr/colorBackground"
-        android:centerColor="#0D808080"
-        android:endColor="?android:attr/colorBackground" />
+    <solid android:color="@color/materialColorBackground" />
 </shape>

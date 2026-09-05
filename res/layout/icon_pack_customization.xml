@@ -1,129 +1,329 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground">
+    android:background="@drawable/settings_page_background">
 
-    <!-- Static Main Container (Perfectly fits and aligned on screen) -->
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="16dp"
-        android:clipChildren="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
         android:clipToPadding="false">
 
-        <!-- Prominent Preview Screen Container -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/preview_container"
-            android:layout_width="match_parent"
-            android:layout_height="160dp"
-            android:layout_marginBottom="10dp"
-            app:cardCornerRadius="22dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="#1A808080"
-            app:cardBackgroundColor="#0D000000">
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipChildren="false"
-                android:clipToPadding="false">
-
-                <ImageView
-                    android:id="@+id/preview_wallpaper"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="#1A000000" />
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/preview_grid"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:clipToPadding="false"
-                    android:padding="10dp"
-                    android:overScrollMode="never" />
-            </FrameLayout>
-        </com.google.android.material.card.MaterialCardView>
-
         <LinearLayout
-            android:id="@+id/controls_container"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center_vertical"
-            android:clipChildren="false"
-            android:clipToPadding="false">
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="28dp">
 
-            <!-- Container 1: Icon Packs -->
+            <!-- Card 0: Authentic Launcher Live Preview Screen -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/preview_container"
+                android:layout_width="match_parent"
+                android:layout_height="276dp"
+                android:layout_marginBottom="14dp"
+                app:cardCornerRadius="26dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1.5dp"
+                app:strokeColor="@color/settings_card_stroke"
+                app:cardBackgroundColor="@color/settings_card_bg_translucent">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <!-- Wallpaper Layer -->
+                    <ImageView
+                        android:id="@+id/preview_wallpaper"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop" />
+
+                    <!-- Ambient Scrim / Vignette -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_preview_screen_overlay" />
+
+                    <!-- Authentic Launcher Hierarchy: Status Bar -> At-a-Glance -> Workspace Apps -> Dots -> Hotseat -> Dock QSB -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:paddingTop="5dp"
+                        android:paddingBottom="5dp">
+
+                        <!-- 1. Mini Status Bar -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="20dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp">
+
+                            <TextView
+                                android:id="@+id/preview_status_time"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="09:41"
+                                android:textSize="11sp"
+                                android:fontFamily="google-sans-text"
+                                android:textStyle="bold"
+                                android:letterSpacing="-0.01"
+                                android:textColor="#FFFFFFFF" />
+
+                            <!-- Center Camera Punch-Hole Cutout -->
+                            <View
+                                android:layout_width="14dp"
+                                android:layout_height="5dp"
+                                android:background="@drawable/bg_preview_camera_pill" />
+
+                            <!-- Status Icons -->
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="end|center_vertical"
+                                android:orientation="horizontal">
+
+                                <ImageView
+                                    android:layout_width="13dp"
+                                    android:layout_height="11dp"
+                                    android:src="@drawable/ic_preview_wifi"
+                                    app:tint="#E6FFFFFF" />
+
+                                <ImageView
+                                    android:layout_width="16dp"
+                                    android:layout_height="10dp"
+                                    android:layout_marginStart="6dp"
+                                    android:src="@drawable/ic_preview_battery"
+                                    app:tint="#E6FFFFFF" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- 2. Launcher At-a-Glance / Smartspace Widget -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="24dp"
+                            android:layout_marginTop="4dp"
+                            android:layout_marginStart="14dp"
+                            android:layout_marginEnd="14dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/preview_at_a_glance"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Tuesday, Sep 5 • 24°C ☀️"
+                                android:textSize="11sp"
+                                android:fontFamily="google-sans-text"
+                                android:textStyle="bold"
+                                android:textColor="#FFFFFFFF"
+                                android:shadowColor="#B3000000"
+                                android:shadowDx="0"
+                                android:shadowDy="1"
+                                android:shadowRadius="3"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_icon_preview_badge"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingStart="6dp"
+                                android:paddingTop="2dp"
+                                android:paddingEnd="6dp"
+                                android:paddingBottom="2dp">
+
+                                <ImageView
+                                    android:layout_width="10dp"
+                                    android:layout_height="10dp"
+                                    android:src="@drawable/ic_check_sparkle"
+                                    app:tint="@color/materialColorPrimary" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="3dp"
+                                    android:text="PREVIEW"
+                                    android:textSize="8.5sp"
+                                    android:fontFamily="google-sans-text"
+                                    android:textStyle="bold"
+                                    android:letterSpacing="0.04"
+                                    android:textColor="@color/materialColorPrimary" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- 3. Workspace App Icons Row (with labels) -->
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/preview_grid"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:clipChildren="false"
+                            android:clipToPadding="false"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:overScrollMode="never" />
+
+                        <!-- 4. Workspace Page Indicator Dots -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="8dp"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginBottom="2dp"
+                            android:gravity="center"
+                            android:orientation="horizontal">
+
+                            <View
+                                android:layout_width="5dp"
+                                android:layout_height="5dp"
+                                android:layout_marginEnd="4dp"
+                                android:background="@drawable/bg_preview_dot_active" />
+
+                            <View
+                                android:layout_width="4dp"
+                                android:layout_height="4dp"
+                                android:layout_marginEnd="4dp"
+                                android:background="@drawable/bg_preview_dot_inactive" />
+
+                            <View
+                                android:layout_width="4dp"
+                                android:layout_height="4dp"
+                                android:background="@drawable/bg_preview_dot_inactive" />
+                        </LinearLayout>
+
+                        <!-- 5. Hotseat / Dock App Icons Row (floating directly on wallpaper) -->
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/preview_dock_grid"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:clipChildren="false"
+                            android:clipToPadding="false"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:overScrollMode="never" />
+
+                        <!-- 6. Dock Quick Search Bar (QSB) at Bottom -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="32dp"
+                            android:layout_marginStart="14dp"
+                            android:layout_marginEnd="14dp"
+                            android:layout_marginTop="3dp"
+                            android:layout_marginBottom="4dp"
+                            android:background="@drawable/bg_preview_search_pill"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp">
+
+                            <ImageView
+                                android:layout_width="17dp"
+                                android:layout_height="17dp"
+                                android:src="@drawable/ic_preview_google_g" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="8dp"
+                                android:text="Search apps, web..."
+                                android:textSize="10.5sp"
+                                android:fontFamily="google-sans-text"
+                                android:textColor="#D9FFFFFF" />
+
+                            <ImageView
+                                android:layout_width="15dp"
+                                android:layout_height="15dp"
+                                android:layout_marginEnd="8dp"
+                                android:src="@drawable/ic_preview_mic" />
+
+                            <ImageView
+                                android:layout_width="15dp"
+                                android:layout_height="15dp"
+                                android:src="@drawable/ic_preview_lens" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </FrameLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 1: Icon Packs -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/card_icon_pack"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                app:cardCornerRadius="20dp"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#1A808080"
-                app:cardBackgroundColor="#08808080">
+                app:strokeColor="@color/settings_card_stroke"
+                app:cardBackgroundColor="@color/settings_card_bg_translucent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingTop="12dp"
-                    android:paddingBottom="12dp"
-                    android:clipChildren="false"
-                    android:clipToPadding="false">
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp">
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
 
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_palette"
-                            app:tint="?android:attr/colorAccent" />
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_settings_squircle_badge"
+                            android:backgroundTint="@color/settings_badge_theme_bg">
+
+                            <ImageView
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_palette"
+                                app:tint="@color/materialColorOnPrimaryContainer" />
+                        </FrameLayout>
 
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:layout_marginStart="10dp"
+                            android:layout_marginStart="14dp"
                             android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/pref_icon_pack_title"
-                                android:textSize="14sp"
+                                android:textSize="16sp"
+                                android:fontFamily="google-sans-text"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
                                 android:text="Choose default, themed, or custom icon pack"
-                                android:textSize="11sp"
-                                android:textColor="?android:attr/textColorSecondary"
-                                android:alpha="0.7" />
+                                android:textSize="12sp"
+                                android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -131,111 +331,111 @@
                         android:id="@+id/icon_pack_list"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="12dp"
                         android:clipToPadding="false"
-                        android:clipChildren="false"
-                        android:paddingStart="10dp"
-                        android:paddingEnd="10dp"
-                        android:paddingTop="4dp"
-                        android:paddingBottom="4dp" />
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:overScrollMode="never" />
 
+                    <!-- Themed Icons Option Banner -->
                     <LinearLayout
                         android:id="@+id/themed_options_container"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
+                        android:layout_marginStart="14dp"
+                        android:layout_marginEnd="14dp"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_icon_pack_item"
+                        android:paddingStart="14dp"
+                        android:paddingTop="12dp"
+                        android:paddingEnd="14dp"
+                        android:paddingBottom="12dp"
                         android:visibility="gone">
 
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginTop="8dp"
-                            android:layout_marginBottom="8dp"
-                            android:background="#1F808080" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
+                        <TextView
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:paddingStart="14dp"
-                            android:paddingEnd="14dp">
+                            android:layout_weight="1"
+                            android:text="@string/pref_themed_icons_homescreen_only_title"
+                            android:textSize="13sp"
+                            android:fontFamily="google-sans-text"
+                            android:textStyle="bold"
+                            android:textColor="?android:attr/textColorPrimary" />
 
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/pref_themed_icons_homescreen_only_title"
-                                android:textSize="13sp"
-                                android:textStyle="bold"
-                                android:textColor="?android:attr/textColorPrimary" />
-
-                            <androidx.appcompat.widget.SwitchCompat
-                                android:id="@+id/homescreen_only_switch"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content" />
-                        </LinearLayout>
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/homescreen_only_switch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Container 2: Icon Shapes -->
+            <!-- Card 2: Icon Shapes -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/shape_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="10dp"
-                app:cardCornerRadius="20dp"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#1A808080"
-                app:cardBackgroundColor="#08808080">
+                app:strokeColor="@color/settings_card_stroke"
+                app:cardBackgroundColor="@color/settings_card_bg_translucent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingTop="12dp"
-                    android:paddingBottom="12dp"
-                    android:clipChildren="false"
-                    android:clipToPadding="false">
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp">
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
 
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_shapes_container"
-                            app:tint="?android:attr/colorAccent" />
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_settings_squircle_badge"
+                            android:backgroundTint="@color/settings_badge_drawer_bg">
+
+                            <ImageView
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_shapes_container"
+                                app:tint="@color/materialColorOnTertiaryContainer" />
+                        </FrameLayout>
 
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:layout_marginStart="10dp"
+                            android:layout_marginStart="14dp"
                             android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Icon Shape"
-                                android:textSize="14sp"
+                                android:textSize="16sp"
+                                android:fontFamily="google-sans-text"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
                                 android:text="Customize app icon silhouettes"
-                                android:textSize="11sp"
-                                android:textColor="?android:attr/textColorSecondary"
-                                android:alpha="0.7" />
+                                android:textSize="12sp"
+                                android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -243,153 +443,219 @@
                         android:id="@+id/shape_list"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="12dp"
                         android:clipToPadding="false"
-                        android:clipChildren="false"
-                        android:paddingStart="10dp"
-                        android:paddingEnd="10dp"
-                        android:paddingTop="4dp"
-                        android:paddingBottom="4dp" />
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:overScrollMode="never" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Container 3: Icon Size -->
+            <!-- Card 3: Icon Size -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/size_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="20dp"
+                android:layout_marginBottom="18dp"
+                app:cardCornerRadius="22dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="#1A808080"
-                app:cardBackgroundColor="#08808080">
+                app:strokeColor="@color/settings_card_stroke"
+                app:cardBackgroundColor="@color/settings_card_bg_translucent">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingTop="12dp"
-                    android:paddingBottom="12dp">
+                    android:paddingTop="14dp"
+                    android:paddingBottom="16dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="14dp">
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
 
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_size_container"
-                            app:tint="?android:attr/colorAccent" />
+                        <FrameLayout
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="@drawable/bg_settings_squircle_badge"
+                            android:backgroundTint="@color/settings_badge_general_bg">
+
+                            <ImageView
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_size_container"
+                                app:tint="@color/materialColorOnSecondaryContainer" />
+                        </FrameLayout>
 
                         <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:layout_marginStart="10dp"
+                            android:layout_marginStart="14dp"
                             android:orientation="vertical">
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Icon Size"
-                                android:textSize="14sp"
+                                android:textSize="16sp"
+                                android:fontFamily="google-sans-text"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
                                 android:text="Scale app icon dimension"
-                                android:textSize="11sp"
-                                android:textColor="?android:attr/textColorSecondary"
-                                android:alpha="0.7" />
+                                android:textSize="12sp"
+                                android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>
 
+                        <!-- Percentage Badge -->
                         <TextView
                             android:id="@+id/icon_size_label"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="100%"
-                            android:textSize="12sp"
+                            android:textSize="13sp"
+                            android:fontFamily="google-sans-text"
                             android:textStyle="bold"
-                            android:textColor="?android:attr/colorAccent"
-                            android:background="@drawable/badge_pill_bg"
+                            android:textColor="@color/materialColorPrimary"
+                            android:background="@drawable/bg_settings_tag_pill"
                             android:paddingStart="12dp"
-                            android:paddingTop="4dp"
+                            android:paddingTop="5dp"
                             android:paddingEnd="12dp"
-                            android:paddingBottom="4dp" />
+                            android:paddingBottom="5dp" />
                     </LinearLayout>
 
+                    <!-- Quick Size Presets Chips Row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
+
+                        <TextView
+                            android:id="@+id/chip_size_80"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:background="@drawable/bg_settings_tag_pill"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
+                            android:text="80%"
+                            android:textSize="11sp"
+                            android:fontFamily="google-sans-text"
+                            android:textStyle="bold"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:layout_marginEnd="6dp" />
+
+                        <TextView
+                            android:id="@+id/chip_size_100"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:background="@drawable/bg_settings_tag_pill"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
+                            android:text="100%"
+                            android:textSize="11sp"
+                            android:fontFamily="google-sans-text"
+                            android:textStyle="bold"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:layout_marginEnd="6dp" />
+
+                        <TextView
+                            android:id="@+id/chip_size_115"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:background="@drawable/bg_settings_tag_pill"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
+                            android:text="115%"
+                            android:textSize="11sp"
+                            android:fontFamily="google-sans-text"
+                            android:textStyle="bold"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:layout_marginEnd="6dp" />
+
+                        <TextView
+                            android:id="@+id/chip_size_130"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="center"
+                            android:background="@drawable/bg_settings_tag_pill"
+                            android:paddingTop="6dp"
+                            android:paddingBottom="6dp"
+                            android:text="130%"
+                            android:textSize="11sp"
+                            android:fontFamily="google-sans-text"
+                            android:textStyle="bold"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:clickable="true"
+                            android:focusable="true" />
+                    </LinearLayout>
+
+                    <!-- Continuous Scale Slider -->
                     <SeekBar
                         android:id="@+id/icon_size_slider"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="12dp"
                         android:layout_marginStart="10dp"
                         android:layout_marginEnd="10dp"
                         android:max="50"
                         android:progress="20"
                         android:splitTrack="false"
                         android:minHeight="32dp"
-                        android:paddingStart="4dp"
-                        android:paddingEnd="4dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
                         android:progressDrawable="@drawable/seekbar_track_material"
                         android:thumb="@drawable/seekbar_thumb_material" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="2dp"
-                        android:paddingStart="18dp"
-                        android:paddingEnd="18dp">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Small (80%)"
-                            android:textSize="11sp"
-                            android:textColor="?android:attr/textColorSecondary"
-                            android:alpha="0.6" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Large (130%)"
-                            android:textSize="11sp"
-                            android:textColor="?android:attr/textColorSecondary"
-                            android:alpha="0.6" />
-                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-        </LinearLayout>
 
-        <!-- Modern Prominent Apply Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/apply_button"
-            android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:text="@string/pref_icon_pack_apply"
-            android:textAllCaps="false"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            app:icon="@drawable/ic_check_sparkle"
-            app:iconTint="#FFFFFF"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp"
-            app:iconSize="20dp"
-            app:backgroundTint="?android:attr/colorAccent"
-            app:cornerRadius="26dp"
-            app:elevation="4dp"
-            app:rippleColor="#40FFFFFF" />
-    </LinearLayout>
+            <!-- Modern Apply Pill Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/apply_button"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:text="@string/pref_icon_pack_apply"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:fontFamily="google-sans-text"
+                android:textStyle="bold"
+                android:textColor="@color/materialColorOnPrimary"
+                app:icon="@drawable/ic_check_sparkle"
+                app:iconTint="@color/materialColorOnPrimary"
+                app:iconGravity="textStart"
+                app:iconPadding="10dp"
+                app:iconSize="22dp"
+                app:backgroundTint="@color/materialColorPrimary"
+                app:cornerRadius="27dp"
+                app:elevation="2dp"
+                app:rippleColor="#33FFFFFF" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <!-- Minimal Modern Loading Overlay -->
     <FrameLayout
@@ -409,10 +675,10 @@
             android:gravity="center">
 
             <ProgressBar
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:indeterminate="true"
-                android:indeterminateTint="?android:attr/colorAccent" />
+                android:indeterminateTint="@color/materialColorPrimary" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -421,9 +687,9 @@
                 android:text="Applying icon theme..."
                 android:textColor="?android:attr/textColorPrimary"
                 android:textSize="15sp"
+                android:fontFamily="google-sans-text"
                 android:textStyle="bold"
-                android:letterSpacing="0.02"
-                android:alpha="0.85" />
+                android:letterSpacing="0.02" />
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>

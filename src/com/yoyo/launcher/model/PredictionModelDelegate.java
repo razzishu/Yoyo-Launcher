@@ -50,6 +50,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -73,6 +74,11 @@ public class PredictionModelDelegate extends ModelDelegate {
 
     private List<String> mDockPool = null;
 
+    private static final long USAGE_CACHE_TTL_MS = 5 * 60 * 1000L; // 5 minutes cache
+    private long mLastUsageQueryTime = 0L;
+    private List<String> mCachedRecentPackages = null;
+    private List<String> mCachedTopPackages = null;
+
     private final List<Object> mPendingTargetsAllApps = new ArrayList<>();
     private final List<Object> mPendingTargetsHotseat = new ArrayList<>();
 
@@ -94,6 +100,7 @@ public class PredictionModelDelegate extends ModelDelegate {
                 LauncherPrefs.SUGGESTIONS_HOTSEAT.getSharedPrefKey().equals(key)) {
             Log.d(TAG, "Suggestions preference changed, refreshing data...");
             mDockPool = null; 
+            mLastUsageQueryTime = 0L; // Invalidate cache on setting toggle
             
             // Immediately clear UI if disabled
             LauncherPrefs lp = LauncherPrefs.get(mContext);
@@ -199,24 +206,70 @@ public class PredictionModelDelegate extends ModelDelegate {
     }
 
     public void requestPredictionUpdate() {
+        LauncherPrefs prefs = LauncherPrefs.get(mContext);
+        boolean allAppsEnabled = prefs.get(LauncherPrefs.SUGGESTIONS_ALL_APPS);
+        boolean hotseatEnabled = prefs.get(LauncherPrefs.SUGGESTIONS_HOTSEAT);
+        if (!allAppsEnabled && !hotseatEnabled) {
+            // Both suggestions disabled, skip all background prediction work
+            return;
+        }
+
         if (mUseFallback) {
             MODEL_EXECUTOR.execute(() -> {
-                generateFallbackPredictions(CONTAINER_ALL_APPS_PREDICTION);
-                generateFallbackPredictions(CONTAINER_HOTSEAT_PREDICTION);
+                if (allAppsEnabled) {
+                    generateFallbackPredictions(CONTAINER_ALL_APPS_PREDICTION);
+                }
+                if (hotseatEnabled) {
+                    generateFallbackPredictions(CONTAINER_HOTSEAT_PREDICTION);
+                }
             });
             return;
         }
 
         try {
-            if (mAllAppsPredictor != null) {
+            if (mAllAppsPredictor != null && allAppsEnabled) {
                 mAllAppsPredictor.getClass().getMethod("requestPredictionUpdate").invoke(mAllAppsPredictor);
             }
-            if (mHotseatPredictor != null) {
+            if (mHotseatPredictor != null && hotseatEnabled) {
                 mHotseatPredictor.getClass().getMethod("requestPredictionUpdate").invoke(mHotseatPredictor);
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to request prediction update", e);
         }
+    }
+
+    private synchronized void updateUsageCacheIfNeeded(UsageStatsManager usm) {
+        long now = System.currentTimeMillis();
+        if (mCachedRecentPackages != null && (now - mLastUsageQueryTime) < USAGE_CACHE_TTL_MS) {
+            return;
+        }
+        long startTime = now - (1000L * 60 * 60 * 24 * 7); // 7 days window
+        Map<String, UsageStats> statsMap = usm.queryAndAggregateUsageStats(startTime, now);
+        if (statsMap == null || statsMap.isEmpty()) {
+            mCachedRecentPackages = Collections.emptyList();
+            mCachedTopPackages = Collections.emptyList();
+            mLastUsageQueryTime = now;
+            return;
+        }
+
+        String myPkg = mContext.getPackageName();
+        List<UsageStats> validStats = statsMap.values().stream()
+                .filter(s -> s != null && s.getTotalTimeInForeground() > 0 && !myPkg.equals(s.getPackageName()))
+                .collect(Collectors.toList());
+
+        mCachedRecentPackages = validStats.stream()
+                .sorted((a, b) -> Long.compare(b.getLastTimeUsed(), a.getLastTimeUsed()))
+                .map(UsageStats::getPackageName)
+                .limit(15)
+                .collect(Collectors.toList());
+
+        mCachedTopPackages = validStats.stream()
+                .sorted((a, b) -> Long.compare(b.getTotalTimeInForeground(), a.getTotalTimeInForeground()))
+                .map(UsageStats::getPackageName)
+                .limit(30)
+                .collect(Collectors.toList());
+
+        mLastUsageQueryTime = now;
     }
 
     @WorkerThread
@@ -234,21 +287,20 @@ public class PredictionModelDelegate extends ModelDelegate {
         UsageStatsManager usm = (UsageStatsManager) mContext.getSystemService(Context.USAGE_STATS_SERVICE);
         if (usm == null) return;
 
-        long endTime = System.currentTimeMillis();
-        
+        updateUsageCacheIfNeeded(usm);
+
         if (containerId == CONTAINER_ALL_APPS_PREDICTION) {
-            List<String> recent = getUsageSortedPackages(usm, endTime - (1000L * 60 * 60 * 24), endTime, 10);
-            List<String> top = getUsageSortedPackages(usm, endTime - (1000L * 60 * 60 * 24 * 7), endTime, 30);
-            
-            List<String> combined = new ArrayList<>(recent);
-            for (String pkg : top) {
-                if (!combined.contains(pkg)) combined.add(pkg);
-                if (combined.size() >= 20) break;
+            List<String> combined = new ArrayList<>(mCachedRecentPackages != null ? mCachedRecentPackages : Collections.emptyList());
+            if (mCachedTopPackages != null) {
+                for (String pkg : mCachedTopPackages) {
+                    if (!combined.contains(pkg)) combined.add(pkg);
+                    if (combined.size() >= 20) break;
+                }
             }
             dispatchToUi(resolvePackages(combined, containerId), containerId);
         } else {
             if (mDockPool == null) {
-                List<String> top = getUsageSortedPackages(usm, endTime - (1000L * 60 * 60 * 24 * 7), endTime, 30);
+                List<String> top = new ArrayList<>(mCachedTopPackages != null ? mCachedTopPackages : Collections.emptyList());
                 Collections.shuffle(top);
                 mDockPool = top;
             }
@@ -256,41 +308,53 @@ public class PredictionModelDelegate extends ModelDelegate {
         }
     }
 
-    private List<String> getUsageSortedPackages(UsageStatsManager usm, long start, long end, int limit) {
-        Map<String, UsageStats> stats = usm.queryAndAggregateUsageStats(start, end);
-        return stats.values().stream()
-                .filter(s -> s.getTotalTimeInForeground() > 0)
-                .sorted((a, b) -> Long.compare(b.getLastTimeUsed(), a.getLastTimeUsed()))
-                .map(UsageStats::getPackageName)
-                .filter(pkg -> !pkg.equals(mContext.getPackageName()))
-                .limit(limit)
-                .collect(Collectors.toList());
-    }
-
     private List<WorkspaceItemInfo> resolvePackages(List<String> packages, int containerId) {
         List<WorkspaceItemInfo> items = new ArrayList<>();
-        LauncherApps launcherApps = mContext.getSystemService(LauncherApps.class);
-        UserHandle user = Process.myUserHandle();
         InvariantDeviceProfile idp = LauncherAppState.getIDP(mContext);
         int limit = (containerId == CONTAINER_ALL_APPS_PREDICTION) ? idp.numAllAppsColumns : idp.numShownHotseatIcons;
 
+        // Instant in-memory lookup from mAppsList if available
+        Map<String, AppInfo> appMap = null;
+        if (mAppsList != null && mAppsList.data != null) {
+            appMap = new HashMap<>();
+            for (AppInfo app : mAppsList.data) {
+                if (app != null && app.componentName != null) {
+                    appMap.putIfAbsent(app.componentName.getPackageName(), app);
+                }
+            }
+        }
+
+        LauncherApps launcherApps = null;
+        UserHandle user = Process.myUserHandle();
+
         for (String pkg : packages) {
-            List<LauncherActivityInfo> activities = launcherApps.getActivityList(pkg, user);
-            if (activities == null || activities.isEmpty()) continue;
-            
-            LauncherActivityInfo lai = activities.get(0);
-            WorkspaceItemInfo info = new WorkspaceItemInfo();
-            info.itemType = LauncherSettings.Favorites.ITEM_TYPE_APPLICATION;
-            info.container = containerId;
-            info.intent = new Intent(Intent.ACTION_MAIN)
-                    .addCategory(Intent.CATEGORY_LAUNCHER)
-                    .setComponent(lai.getComponentName())
-                    .setPackage(pkg);
-            info.user = user;
-            
-            LauncherAppState.getInstance(mContext).getIconCache()
-                    .getTitleAndIcon(info, lai, CacheLookupFlag.DEFAULT_LOOKUP_FLAG);
-            items.add(info);
+            if (appMap != null && appMap.containsKey(pkg)) {
+                AppInfo app = appMap.get(pkg);
+                WorkspaceItemInfo info = app.makeWorkspaceItem(mContext);
+                info.container = containerId;
+                items.add(info);
+            } else {
+                if (launcherApps == null) {
+                    launcherApps = mContext.getSystemService(LauncherApps.class);
+                }
+                if (launcherApps == null) continue;
+                List<LauncherActivityInfo> activities = launcherApps.getActivityList(pkg, user);
+                if (activities == null || activities.isEmpty()) continue;
+                
+                LauncherActivityInfo lai = activities.get(0);
+                WorkspaceItemInfo info = new WorkspaceItemInfo();
+                info.itemType = LauncherSettings.Favorites.ITEM_TYPE_APPLICATION;
+                info.container = containerId;
+                info.intent = new Intent(Intent.ACTION_MAIN)
+                        .addCategory(Intent.CATEGORY_LAUNCHER)
+                        .setComponent(lai.getComponentName())
+                        .setPackage(pkg);
+                info.user = user;
+                
+                LauncherAppState.getInstance(mContext).getIconCache()
+                        .getTitleAndIcon(info, lai, CacheLookupFlag.DEFAULT_LOOKUP_FLAG);
+                items.add(info);
+            }
             if (items.size() >= limit) break;
         }
         return items;

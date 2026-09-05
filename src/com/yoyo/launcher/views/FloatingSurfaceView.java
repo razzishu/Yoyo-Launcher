@@ -181,6 +181,23 @@ public class FloatingSurfaceView extends AbstractFloatingView implements
                 lp.leftMargin = Math.round(mIconPosition.left);
                 lp.topMargin = Math.round(mIconPosition.top);
             }
+        } else if (mIconPosition.isEmpty()) {
+            // Sane fallback for apps not on current workspace page (e.g. opened from app drawer):
+            // Target the bottom center / hotseat where the gesture originates to avoid
+            // sending an empty (0,0,0,0) rect that causes SystemUI to abort into Recents overview.
+            int width = mLauncher.getDeviceProfile().getDeviceProperties().getWidthPx();
+            int height = mLauncher.getDeviceProfile().getDeviceProperties().getHeightPx();
+            int iconSize = mLauncher.getDeviceProfile().getWorkspaceIconProfile().getIconSizePx();
+            float left = (width - iconSize) / 2f;
+            float bottom = height - mLauncher.getDeviceProfile().getInsets().bottom - (iconSize / 2f);
+            mTmpPosition.set(left, bottom - iconSize, left + iconSize, bottom);
+            mIconPosition.set(mTmpPosition);
+
+            LayoutParams lp = (LayoutParams) mSurfaceView.getLayoutParams();
+            lp.width = Math.round(mIconPosition.width());
+            lp.height = Math.round(mIconPosition.height());
+            lp.leftMargin = Math.round(mIconPosition.left);
+            lp.topMargin = Math.round(mIconPosition.top);
         }
 
         sendIconInfo();

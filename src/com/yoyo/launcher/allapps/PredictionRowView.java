@@ -37,6 +37,7 @@ import androidx.annotation.Nullable;
 import com.android.app.animation.Interpolators;
 import com.yoyo.launcher.BubbleTextView;
 import com.yoyo.launcher.DeviceProfile;
+import com.yoyo.launcher.LauncherPrefChangeListener;
 import com.yoyo.launcher.LauncherPrefs;
 import com.yoyo.launcher.R;
 import com.yoyo.launcher.Utilities;
@@ -70,6 +71,41 @@ public class PredictionRowView extends LinearLayout implements FloatingHeaderRow
         mActivityContext = ActivityContext.lookupContext(context);
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER);
+    }
+
+    private final LauncherPrefChangeListener mPrefListener = key -> {
+        if (LauncherPrefs.SUGGESTIONS_ALL_APPS.getSharedPrefKey().equals(key)) {
+            post(this::onSuggestionsPrefChanged);
+        }
+    };
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        LauncherPrefs.get(getContext()).addListener(mPrefListener, LauncherPrefs.SUGGESTIONS_ALL_APPS);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        LauncherPrefs.get(getContext()).removeListener(mPrefListener, LauncherPrefs.SUGGESTIONS_ALL_APPS);
+    }
+
+    public void onSuggestionsPrefChanged() {
+        boolean enabled = LauncherPrefs.get(getContext()).get(LauncherPrefs.SUGGESTIONS_ALL_APPS);
+        if (!enabled) {
+            setVisibility(GONE);
+            if (mParent != null) {
+                mParent.onHeightUpdated();
+            }
+        } else {
+            if (!mPredictedApps.isEmpty()) {
+                setVisibility(VISIBLE);
+                if (mParent != null) {
+                    mParent.onHeightUpdated();
+                }
+            }
+        }
     }
 
     @Override

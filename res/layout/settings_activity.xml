@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground">
-
-    <com.yoyo.launcher.views.AnimatedBackgroundView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    android:background="@drawable/settings_page_background">
 
     <LinearLayout
         android:id="@+id/content_parent"
@@ -16,45 +12,20 @@
         android:orientation="vertical">
 
         <Toolbar
-            android:id="@+id/action_bar"
+            android:id="@+id/sub_action_bar"
             style="?android:attr/actionBarStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:title="@string/settings_button_text"
-            android:theme="?android:attr/actionBarTheme" />
+            android:elevation="0dp"
+            android:background="@android:color/transparent"
+            android:theme="?android:attr/actionBarTheme"
+            android:visibility="gone" />
 
-        <!-- Material You Modern Scrollable Pill Tab Bar -->
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tabs"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginStart="14dp"
-            android:layout_marginEnd="14dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/settings_card_bg"
-            app:tabMode="scrollable"
-            app:tabGravity="start"
-            app:tabIndicatorAnimationMode="elastic"
-            app:tabIndicatorGravity="stretch"
-            app:tabIndicator="@drawable/badge_pill_bg"
-            app:tabIndicatorColor="?android:attr/colorAccent"
-            app:tabSelectedTextColor="#FFFFFF"
-            app:tabTextColor="?android:attr/textColorSecondary"
-            app:tabRippleColor="#20000000" />
-
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/view_pager"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:overScrollMode="never" />
-
-        <FrameLayout
+        <androidx.fragment.app.FragmentContainerView
             android:id="@+id/content_frame"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:visibility="gone" />
+            android:visibility="visible" />
     </LinearLayout>
 </FrameLayout>

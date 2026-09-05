@@ -1,73 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Copyright (C) 2021 The Android Open Source Project
-
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
--->
-<androidx.coordinatorlayout.widget.CoordinatorLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/content_parent"
+<!-- Copyright (C) 2026 The Android Open Source Project -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/materialColorBackground">
+    android:background="@drawable/settings_page_background">
 
-    <com.yoyo.launcher.views.AnimatedBackgroundView
+    <LinearLayout
+        android:id="@+id/content_parent"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/app_bar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:elevation="0dp"
-        app:liftOnScroll="false">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
         <Toolbar
-            android:id="@+id/action_bar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:title="@string/settings_button_text"
-            android:theme="?android:attr/actionBarTheme"
-            android:transitionName="shared_element_view" />
-
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tabs"
+            android:id="@+id/sub_action_bar"
+            style="?android:attr/actionBarStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:elevation="0dp"
             android:background="@android:color/transparent"
-            app:tabMode="fixed"
-            app:tabIndicatorFullWidth="false"
-            app:tabTextAppearance="@style/HomeSettings.TabTextAppearance"
-            app:tabTextColor="@color/materialColorOnSurfaceVariant"
-            app:tabSelectedTextColor="@color/materialColorOnSurface"
-            app:tabIndicatorColor="@color/materialColorOnSurface"
-            app:tabRippleColor="@android:color/transparent" />
+            android:theme="?android:attr/actionBarTheme"
+            android:visibility="gone" />
 
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/view_pager"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
-    <FrameLayout
-        android:id="@+id/content_frame"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/content_frame"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="visible" />
+    </LinearLayout>
+</FrameLayout>

@@ -82,4 +82,20 @@
     <color name="materialColorSecondaryFixedDim">@color/system_secondary_fixed_dim</color>
     <color name="materialColorTertiaryFixed">@color/system_tertiary_fixed</color>
     <color name="materialColorTertiaryFixedDim">@color/system_tertiary_fixed_dim</color>
+
+    <!-- Material You Settings Badge Colors (Dark Theme) -->
+    <color name="badge_color_pink">#4E2535</color>
+    <color name="badge_color_orange">#4A281E</color>
+    <color name="badge_color_teal">#1E3A3C</color>
+    <color name="badge_color_blue">#213854</color>
+    <color name="badge_color_purple">#3B2B50</color>
+    <color name="badge_color_amber">#4A3B18</color>
+    <color name="badge_color_red">#522323</color>
+    <color name="badge_color_green">#1E3D28</color>
+    <color name="badge_color_sky_blue">#1B3B4E</color>
+    <color name="badge_color_indigo">#2E2E54</color>
+    <color name="badge_color_mint">#1B3C38</color>
+    <color name="badge_color_peach">#4A3022</color>
+    <color name="badge_color_light_green">#263E28</color>
+    <color name="badge_color_lilac">#422950</color>
 </resources>

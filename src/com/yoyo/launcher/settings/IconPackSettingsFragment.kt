@@ -16,6 +16,7 @@
 
 package com.yoyo.launcher.settings
 
+import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -71,11 +72,18 @@ import com.yoyo.launcher.icons.ThemedBitmap
 import com.yoyo.launcher.icons.mono.MonoIconThemeController
 import com.yoyo.launcher.shapes.IconShapeModel
 import com.yoyo.launcher.shapes.ShapesProvider
+import com.yoyo.launcher.util.Themes
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.Random
 
 class IconPackSettingsFragment : Fragment() {
 
     private lateinit var previewGrid: RecyclerView
+    private lateinit var previewDockGrid: RecyclerView
+    private lateinit var previewStatusTime: TextView
+    private lateinit var previewAtAGlance: TextView
     private lateinit var previewWallpaper: ImageView
     private lateinit var iconPackList: RecyclerView
     private lateinit var shapeList: RecyclerView
@@ -90,6 +98,7 @@ class IconPackSettingsFragment : Fragment() {
     private lateinit var iconPackAdapter: IconPackAdapter
     private lateinit var shapeAdapter: ShapeAdapter
     private lateinit var previewAdapter: PreviewAdapter
+    private lateinit var dockAdapter: PreviewAdapter
     
     private var selectedPackage: String = "default"
     private var selectedShapeKey: String = ""
@@ -103,8 +112,12 @@ class IconPackSettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        activity?.title = getString(R.string.pref_icon_pack_title)
         
         previewGrid = view.findViewById(R.id.preview_grid)
+        previewDockGrid = view.findViewById(R.id.preview_dock_grid)
+        previewStatusTime = view.findViewById(R.id.preview_status_time)
+        previewAtAGlance = view.findViewById(R.id.preview_at_a_glance)
         previewWallpaper = view.findViewById(R.id.preview_wallpaper)
         iconPackList = view.findViewById(R.id.icon_pack_list)
         shapeList = view.findViewById(R.id.shape_list)
@@ -129,11 +142,13 @@ class IconPackSettingsFragment : Fragment() {
             homescreenOnlyThemed = isChecked
         }
 
+        updateStatusTime()
+        updateAtAGlance()
         setupRandomBackground()
         setupIconPackList()
         setupShapeList()
         setupPreviewGrid()
-        setupSizeSlider()
+        setupSizeSlider(view)
         
         updateShapeVisibility()
         
@@ -169,22 +184,104 @@ class IconPackSettingsFragment : Fragment() {
         }
     }
 
-    private fun setupSizeSlider() {
-        val initialProgress = ((currentSizeFactor - 0.8f) / 0.01f).toInt()
+    private fun setupSizeSlider(rootView: View) {
+        val initialProgress = ((currentSizeFactor - 0.8f) / 0.01f).toInt().coerceIn(0, 50)
         sizeSlider.progress = initialProgress
         updateSizeLabel(currentSizeFactor)
+        updateChipHighlights(rootView, currentSizeFactor)
 
         sizeSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
                 currentSizeFactor = 0.8f + (progress * 0.01f)
                 updateSizeLabel(currentSizeFactor)
+                updateChipHighlights(rootView, currentSizeFactor)
                 if (fromUser) {
-                    previewAdapter.notifyDataSetChanged()
+                    notifyPreviewChanged()
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar) {}
             override fun onStopTrackingTouch(seekBar: SeekBar) {}
         })
+
+        rootView.findViewById<View>(R.id.chip_size_80)?.setOnClickListener {
+            sizeSlider.progress = 0
+            currentSizeFactor = 0.80f
+            updateSizeLabel(currentSizeFactor)
+            updateChipHighlights(rootView, currentSizeFactor)
+            notifyPreviewChanged()
+        }
+        rootView.findViewById<View>(R.id.chip_size_100)?.setOnClickListener {
+            sizeSlider.progress = 20
+            currentSizeFactor = 1.00f
+            updateSizeLabel(currentSizeFactor)
+            updateChipHighlights(rootView, currentSizeFactor)
+            notifyPreviewChanged()
+        }
+        rootView.findViewById<View>(R.id.chip_size_115)?.setOnClickListener {
+            sizeSlider.progress = 35
+            currentSizeFactor = 1.15f
+            updateSizeLabel(currentSizeFactor)
+            updateChipHighlights(rootView, currentSizeFactor)
+            notifyPreviewChanged()
+        }
+        rootView.findViewById<View>(R.id.chip_size_130)?.setOnClickListener {
+            sizeSlider.progress = 50
+            currentSizeFactor = 1.30f
+            updateSizeLabel(currentSizeFactor)
+            updateChipHighlights(rootView, currentSizeFactor)
+            notifyPreviewChanged()
+        }
+    }
+
+    private fun notifyPreviewChanged() {
+        if (::previewAdapter.isInitialized) {
+            previewAdapter.notifyDataSetChanged()
+        }
+        if (::dockAdapter.isInitialized) {
+            dockAdapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun updateStatusTime() {
+        try {
+            val timeFormat = SimpleDateFormat("h:mm", Locale.getDefault())
+            previewStatusTime.text = timeFormat.format(Date())
+        } catch (e: Exception) {
+            previewStatusTime.text = "09:41"
+        }
+    }
+
+    private fun updateAtAGlance() {
+        try {
+            val dateFormat = SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+            previewAtAGlance.text = "${dateFormat.format(Date())} • 24°C ☀️"
+        } catch (e: Exception) {
+            previewAtAGlance.text = "Tuesday, Sep 5 • 24°C ☀️"
+        }
+    }
+
+    private fun updateChipHighlights(rootView: View, factor: Float) {
+        val chips = listOf(
+            Pair(rootView.findViewById<TextView>(R.id.chip_size_80), 0.80f),
+            Pair(rootView.findViewById<TextView>(R.id.chip_size_100), 1.00f),
+            Pair(rootView.findViewById<TextView>(R.id.chip_size_115), 1.15f),
+            Pair(rootView.findViewById<TextView>(R.id.chip_size_130), 1.30f)
+        )
+        val context = rootView.context
+        val primaryColor = context.getColor(R.color.materialColorPrimary)
+        val secondaryColor = Themes.getAttrColor(context, android.R.attr.textColorSecondary)
+
+        for ((chip, targetFactor) in chips) {
+            if (chip == null) continue
+            val isMatch = kotlin.math.abs(factor - targetFactor) < 0.02f
+            if (isMatch) {
+                chip.setTextColor(primaryColor)
+                chip.setBackgroundResource(R.drawable.bg_icon_pack_item_selected)
+            } else {
+                chip.setTextColor(secondaryColor)
+                chip.setBackgroundResource(R.drawable.bg_settings_tag_pill)
+            }
+        }
     }
 
     private fun updateSizeLabel(factor: Float) {
@@ -206,30 +303,31 @@ class IconPackSettingsFragment : Fragment() {
     }
 
     private fun setupRandomBackground() {
-        val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        
-        val baseColor = if (isDark) {
-            val darkColors = intArrayOf(
-                Color.parseColor("#1A1C1E"), Color.parseColor("#1C1B1F"),
-                Color.parseColor("#212121"), Color.parseColor("#263238")
-            )
-            darkColors[random.nextInt(darkColors.size)]
-        } else {
-            val lightColors = intArrayOf(
-                Color.parseColor("#F5F5F5"), Color.parseColor("#F0F4F8"),
-                Color.parseColor("#E8EAF6"), Color.parseColor("#F1F8E9")
-            )
-            lightColors[random.nextInt(lightColors.size)]
+        try {
+            val wm = WallpaperManager.getInstance(requireContext())
+            val wallpaper = wm.drawable
+            if (wallpaper != null) {
+                previewWallpaper.setImageDrawable(wallpaper)
+                return
+            }
+        } catch (e: Exception) {
+            // Fallback to dynamic gradient
         }
 
-        val hsv = FloatArray(3)
-        Color.colorToHSV(baseColor, hsv)
-        hsv[2] *= if (isDark) 1.1f else 0.95f
-        val secondaryColor = Color.HSVToColor(hsv)
-        
+        val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val context = requireContext()
+        val primaryContainer = context.getColor(R.color.materialColorPrimaryContainer)
+        val tertiaryContainer = context.getColor(R.color.materialColorTertiaryContainer)
+        val secondaryContainer = context.getColor(R.color.materialColorSecondaryContainer)
+        val surfaceColor = Themes.getAttrColor(context, android.R.attr.colorBackground)
+
         val gradient = GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(baseColor, secondaryColor)
+            GradientDrawable.Orientation.TL_BR,
+            if (isDark) {
+                intArrayOf(surfaceColor, primaryContainer, tertiaryContainer, surfaceColor)
+            } else {
+                intArrayOf(primaryContainer, secondaryContainer, tertiaryContainer)
+            }
         )
         previewWallpaper.setImageDrawable(gradient)
     }
@@ -241,7 +339,7 @@ class IconPackSettingsFragment : Fragment() {
         iconPackAdapter = IconPackAdapter(packs) { pack ->
             selectedPackage = pack.packageName
             updateShapeVisibility()
-            previewAdapter.refresh()
+            notifyPreviewChanged()
             iconPackAdapter.notifyDataSetChanged()
         }
         
@@ -258,7 +356,7 @@ class IconPackSettingsFragment : Fragment() {
         val shapes = ShapesProvider.iconShapes.toList()
         shapeAdapter = ShapeAdapter(shapes) { shape ->
             selectedShapeKey = shape.key
-            previewAdapter.notifyDataSetChanged()
+            notifyPreviewChanged()
             shapeAdapter.notifyDataSetChanged()
         }
         shapeList.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
@@ -274,21 +372,43 @@ class IconPackSettingsFragment : Fragment() {
         val context = requireContext()
         val pm = context.packageManager
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        // Take exactly 6 apps for a clean 3x2 grid
-        val apps = pm.queryIntentActivities(intent, 0)
+        val allApps = pm.queryIntentActivities(intent, 0)
             .filter { it.activityInfo.packageName != context.packageName }
-            .take(6)
-        
-        previewAdapter = PreviewAdapter(apps)
-        previewGrid.layoutManager = GridLayoutManager(context, 3)
+
+        // Pick typical launcher dock apps (phone, messages, browser, camera)
+        val dialerApp = allApps.find { it.activityInfo.packageName.contains("dialer") || it.activityInfo.packageName.contains("phone") }
+        val msgApp = allApps.find { it.activityInfo.packageName.contains("messaging") || it.activityInfo.packageName.contains("mms") }
+        val browserApp = allApps.find { it.activityInfo.packageName.contains("chrome") || it.activityInfo.packageName.contains("browser") }
+        val cameraApp = allApps.find { it.activityInfo.packageName.contains("camera") }
+
+        val preferredDock = listOfNotNull(dialerApp, msgApp, browserApp, cameraApp).distinct()
+        val dockApps = if (preferredDock.size == 4) {
+            preferredDock
+        } else {
+            val remaining = allApps.filterNot { preferredDock.contains(it) }
+            (preferredDock + remaining).take(4)
+        }
+
+        val remainingForDesktop = allApps.filterNot { dockApps.contains(it) }
+        val desktopApps = if (remainingForDesktop.size >= 4) {
+            remainingForDesktop.take(4)
+        } else {
+            allApps.take(4)
+        }
+
+        previewAdapter = PreviewAdapter(desktopApps, isDock = false)
+        previewGrid.layoutManager = GridLayoutManager(context, 4)
         previewGrid.adapter = previewAdapter
+
+        dockAdapter = PreviewAdapter(dockApps, isDock = true)
+        previewDockGrid.layoutManager = GridLayoutManager(context, 4)
+        previewDockGrid.adapter = dockAdapter
     }
 
     class ClippedPreviewDrawable(
         private val icon: Drawable, 
         private val path: Path,
-        private val isLegacy: Boolean,
-        private val sizeFactor: Float
+        private val isLegacy: Boolean
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
@@ -301,9 +421,6 @@ class IconPackSettingsFragment : Fragment() {
             canvas.withSave {
                 val cx = b.centerX().toFloat()
                 val cy = b.centerY().toFloat()
-
-                // Scale container according to icon size factor
-                scale(sizeFactor, sizeFactor, cx, cy)
 
                 drawMatrix.reset()
                 val side = minOf(b.width(), b.height()).toFloat()
@@ -354,23 +471,22 @@ class IconPackSettingsFragment : Fragment() {
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
-    inner class PreviewAdapter(private val apps: List<ResolveInfo>) : RecyclerView.Adapter<PreviewAdapter.ViewHolder>() {
+    inner class PreviewAdapter(
+        private val apps: List<ResolveInfo>,
+        private val isDock: Boolean
+    ) : RecyclerView.Adapter<PreviewAdapter.ViewHolder>() {
         
         fun refresh() {
             notifyDataSetChanged()
         }
 
         inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val image: ImageView = view.findViewById(R.id.icon_pack_image)
-            val name: TextView = view.findViewById(R.id.icon_pack_name)
+            val image: ImageView = view.findViewById(R.id.preview_icon_image)
+            val label: TextView = view.findViewById(R.id.preview_icon_label)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.icon_pack_item, parent, false)
-            view.layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_preview_icon, parent, false)
             return ViewHolder(view)
         }
 
@@ -414,12 +530,22 @@ class IconPackSettingsFragment : Fragment() {
             }
             
             val isLegacy = (selectedPackage == "default") && (rawIcon !is AdaptiveIconDrawable)
-            val iconDrawable = ClippedPreviewDrawable(baseDrawable, path, isLegacy, currentSizeFactor)
+            val iconDrawable = ClippedPreviewDrawable(baseDrawable, path, isLegacy)
             
-            holder.image.layoutParams.width = dpToPx(44)
-            holder.image.layoutParams.height = dpToPx(44)
+            val baseIconSizeDp = if (isDock) 42f else 38f
+            val scaledSizeDp = (baseIconSizeDp * currentSizeFactor).toInt()
+            val lp = holder.image.layoutParams
+            lp.width = dpToPx(scaledSizeDp)
+            lp.height = dpToPx(scaledSizeDp)
+            holder.image.layoutParams = lp
             holder.image.setImageDrawable(iconDrawable)
-            holder.name.visibility = View.GONE
+            
+            if (isDock) {
+                holder.label.visibility = View.GONE
+            } else {
+                holder.label.visibility = View.VISIBLE
+                holder.label.text = app.loadLabel(pm)
+            }
         }
 
         override fun getItemCount() = apps.size
@@ -465,12 +591,12 @@ class IconPackSettingsFragment : Fragment() {
             }
             
             val isSelected = pack.packageName == selectedPackage
-            holder.itemView.alpha = if (isSelected) 1.0f else 0.5f
+            holder.itemView.alpha = 1.0f
             
             if (isSelected) {
-                holder.itemView.setBackgroundResource(R.drawable.item_selected_bg)
+                holder.itemView.setBackgroundResource(R.drawable.bg_icon_pack_item_selected)
             } else {
-                holder.itemView.background = null
+                holder.itemView.setBackgroundResource(R.drawable.bg_icon_pack_item)
             }
         }
 
@@ -489,7 +615,7 @@ class IconPackSettingsFragment : Fragment() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.icon_pack_item, parent, false)
-            view.layoutParams = ViewGroup.LayoutParams(dpToPx(72), ViewGroup.LayoutParams.WRAP_CONTENT)
+            view.layoutParams = ViewGroup.LayoutParams(dpToPx(76), ViewGroup.LayoutParams.WRAP_CONTENT)
             return ViewHolder(view)
         }
 
@@ -508,8 +634,9 @@ class IconPackSettingsFragment : Fragment() {
             val shapeDrawable = ShapeDrawable(PathShape(path, 100f, 100f))
             shapeDrawable.intrinsicWidth = dpToPx(38)
             shapeDrawable.intrinsicHeight = dpToPx(38)
-            shapeDrawable.paint.color = if (isSelected) 
-                fetchAccentColor(holder.itemView.context) else Color.GRAY
+            val accentColor = fetchAccentColor(context)
+            val unselectedColor = Themes.getAttrColor(context, android.R.attr.textColorSecondary)
+            shapeDrawable.paint.color = if (isSelected) accentColor else unselectedColor
             shapeDrawable.paint.style = Paint.Style.FILL
             
             holder.image.setImageDrawable(shapeDrawable)
@@ -518,12 +645,12 @@ class IconPackSettingsFragment : Fragment() {
                 onSelected(shape)
             }
             
-            holder.itemView.alpha = if (isSelected) 1.0f else 0.5f
+            holder.itemView.alpha = 1.0f
 
             if (isSelected) {
-                holder.itemView.setBackgroundResource(R.drawable.item_selected_bg)
+                holder.itemView.setBackgroundResource(R.drawable.bg_icon_pack_item_selected)
             } else {
-                holder.itemView.background = null
+                holder.itemView.setBackgroundResource(R.drawable.bg_icon_pack_item)
             }
         }
 
@@ -534,6 +661,11 @@ class IconPackSettingsFragment : Fragment() {
             context.theme.resolveAttribute(android.R.attr.colorAccent, typedValue, true)
             return typedValue.data
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        activity?.title = getString(R.string.pref_icon_pack_title)
     }
 
     private fun dpToPx(dp: Int): Int {

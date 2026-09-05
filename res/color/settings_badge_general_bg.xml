@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/materialColorSecondaryContainer"/>
+</selector>

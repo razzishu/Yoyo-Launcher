@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -23,54 +24,90 @@ public class MainSettingsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        view.findViewById(R.id.menu_icons_theme).setOnClickListener(v -> {
-            if (getActivity() instanceof SettingsActivity) {
-                ((SettingsActivity) getActivity()).openSubSettings(
-                        "com.yoyo.launcher.settings.IconPackSettingsFragment",
-                        0,
-                        "Icons & Theme"
-                );
+        TextView versionPill = view.findViewById(R.id.version_pill);
+        if (versionPill != null) {
+            try {
+                String versionName = requireContext().getPackageManager()
+                        .getPackageInfo(requireContext().getPackageName(), 0).versionName;
+                if (versionName != null) {
+                    versionPill.setText("v" + versionName);
+                }
+            } catch (Exception e) {
+                versionPill.setText("v1.0.3-beta");
             }
-        });
+        }
 
-        view.findViewById(R.id.menu_general).setOnClickListener(v -> {
-            if (getActivity() instanceof SettingsActivity) {
-                ((SettingsActivity) getActivity()).openSubSettings(
-                        null,
-                        R.xml.launcher_general_preferences,
-                        "General"
-                );
-            }
-        });
+        View closeBtn = view.findViewById(R.id.btn_close_settings);
+        if (closeBtn != null) {
+            closeBtn.setOnClickListener(v -> {
+                if (getActivity() != null) {
+                    getActivity().finish();
+                }
+            });
+        }
 
-        view.findViewById(R.id.menu_homescreen).setOnClickListener(v -> {
-            if (getActivity() instanceof SettingsActivity) {
-                ((SettingsActivity) getActivity()).openSubSettings(
-                        null,
-                        R.xml.launcher_homescreen_preferences,
-                        "Homescreen"
-                );
-            }
-        });
+        View iconsThemeCard = view.findViewById(R.id.menu_icons_theme);
+        if (iconsThemeCard != null) {
+            iconsThemeCard.setOnClickListener(v -> {
+                if (getActivity() instanceof SettingsActivity) {
+                    ((SettingsActivity) getActivity()).openSubSettings(
+                            null,
+                            R.xml.launcher_theme_preferences,
+                            "Look & Feel"
+                    );
+                }
+            });
+        }
 
-        view.findViewById(R.id.menu_app_drawer).setOnClickListener(v -> {
-            if (getActivity() instanceof SettingsActivity) {
-                ((SettingsActivity) getActivity()).openSubSettings(
-                        null,
-                        R.xml.launcher_app_drawer_preferences,
-                        "App Drawer"
-                );
-            }
-        });
+        View homescreenCard = view.findViewById(R.id.menu_homescreen);
+        if (homescreenCard != null) {
+            homescreenCard.setOnClickListener(v -> {
+                if (getActivity() instanceof SettingsActivity) {
+                    ((SettingsActivity) getActivity()).openSubSettings(
+                            null,
+                            R.xml.launcher_homescreen_preferences,
+                            "Home Screen & Layout"
+                    );
+                }
+            });
+        }
 
-        view.findViewById(R.id.menu_dock_search).setOnClickListener(v -> {
-            if (getActivity() instanceof SettingsActivity) {
-                ((SettingsActivity) getActivity()).openSubSettings(
-                        null,
-                        R.xml.launcher_dock_search_preferences,
-                        "Dock & Search Bar"
-                );
-            }
-        });
+        View drawerCard = view.findViewById(R.id.menu_app_drawer);
+        if (drawerCard != null) {
+            drawerCard.setOnClickListener(v -> {
+                if (getActivity() instanceof SettingsActivity) {
+                    ((SettingsActivity) getActivity()).openSubSettings(
+                            null,
+                            R.xml.launcher_app_drawer_preferences,
+                            "App Drawer & Search"
+                    );
+                }
+            });
+        }
+
+        View privacyCard = view.findViewById(R.id.menu_privacy_system);
+        if (privacyCard != null) {
+            privacyCard.setOnClickListener(v -> {
+                if (getActivity() instanceof SettingsActivity) {
+                    ((SettingsActivity) getActivity()).openSubSettings(
+                            null,
+                            R.xml.launcher_general_preferences,
+                            "Privacy & System"
+                    );
+                }
+            });
+        }
+
+        if (getActivity() instanceof SettingsActivity) {
+            ((SettingsActivity) getActivity()).updateToolbarState();
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (getActivity() instanceof SettingsActivity) {
+            ((SettingsActivity) getActivity()).updateToolbarState();
+        }
     }
 }

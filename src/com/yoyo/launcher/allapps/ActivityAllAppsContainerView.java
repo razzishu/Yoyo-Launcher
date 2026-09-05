@@ -49,6 +49,9 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
+import java.util.Random;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.os.Process;
@@ -208,6 +211,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     private int mCardTop = 0;
     private int mDrawerOpacity = 85;
 
+    private int mGradientPermutation = 0;
+
     public ActivityAllAppsContainerView(Context context) {
         this(context, null);
     }
@@ -245,8 +250,8 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         AllAppsStore.OnUpdateListener onAppsUpdated = this::onAppsUpdated;
         mAllAppsStore.addUpdateListener(onAppsUpdated);
 
-        mCardBackground = context.getDrawable(R.drawable.bg_all_apps_list);
-        mSuggestionsCardBackground = context.getDrawable(R.drawable.bg_all_apps_suggestions);
+        mCardBackground = context.getDrawable(R.drawable.bg_all_apps_list).mutate();
+        mSuggestionsCardBackground = context.getDrawable(R.drawable.bg_all_apps_suggestions).mutate();
 
         // This is a focus listener that proxies focus from a view into the list view.  This is to
         // work around the search box from getting first focus and showing the cursor.
@@ -353,6 +358,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         updateBackgroundVisibility(mActivityContext.getDeviceProfile());
         mSearchUiManager.initializeSearch(this);
         updateDrawerOpacity();
+        applyDynamicRainbowGradients();
     }
 
     @Override
@@ -561,8 +567,15 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         if (rv == null) {
             return true;
         }
-        if (rv.getScrollState() == RecyclerView.SCROLL_STATE_SETTLING) {
-            return false;
+        // IF event is over floating header (suggestions row / tabs) and list is at top, container should move down.
+        if (mHeader != null && dragLayer.isEventOverView(mHeader, ev)) {
+            boolean headerAtTop = !rv.canScrollVertically(-1) || rv.computeVerticalScrollOffset() <= 2;
+            if (headerAtTop) {
+                if (rv.getScrollState() == RecyclerView.SCROLL_STATE_SETTLING) {
+                    rv.stopScroll();
+                }
+                return true;
+            }
         }
         if (rv.getScrollbar() != null
                 && rv.getScrollbar().getThumbOffsetY() >= 0
@@ -634,6 +647,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
         if (clearScrimOnReset() && mScrimView != null && clearScrim) {
             mScrimView.setDrawingController(null);
         }
+        applyDynamicRainbowGradients();
     }
 
     /**
@@ -1531,6 +1545,88 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             float top = getHeight() / 2f + (getHeight() / 2f - mNavBarScrimHeight) / getScaleY();
             canvas.drawRect(left, top, getWidth() / getScaleX(),
                     top + mNavBarScrimHeight / getScaleY(), mNavBarScrimPaint);
+        }
+    }
+
+    /**
+     * Applies subtle, elegant Material You rainbow gradients across all app drawer components
+     * (suggestions row, all-apps card, and search container).
+     * Uses harmonious natural diagonal angles (TL_BR and BL_TR) and soft ambient alpha so that dynamic
+     * system colors flow gracefully across all corners and the surface container remains dominant.
+     */
+    private void applyDynamicRainbowGradients() {
+        Context context = getContext();
+        if (context == null) return;
+
+        boolean isDark = Utilities.isDarkTheme(context);
+
+        // Fetch dynamic Material You system accent colors
+        int a1 = context.getColor(isDark ? android.R.color.system_accent1_200 : android.R.color.system_accent1_500);
+        int a2 = context.getColor(isDark ? android.R.color.system_accent2_200 : android.R.color.system_accent2_500);
+        int a3 = context.getColor(isDark ? android.R.color.system_accent3_200 : android.R.color.system_accent3_500);
+
+        // Subtle, elegant alpha levels: surface color remains 88-92% dominant
+        int sugA1 = isDark ? 33 : 25;  // ~13% / 10%
+        int sugA2 = isDark ? 36 : 30;  // ~14% / 12%
+        int sugA3 = isDark ? 36 : 30;
+
+        int listA3 = isDark ? 28 : 22; // ~11% / 9%
+        int listA1 = isDark ? 25 : 20; // ~10% / 8%
+        int listA2 = isDark ? 30 : 25; // ~12% / 10%
+
+        int searchA2 = isDark ? 36 : 28; // ~14% / 11%
+        int searchA3 = isDark ? 38 : 30; // ~15% / 12%
+        int searchA1 = isDark ? 34 : 26; // ~13% / 10%
+
+        int c1_sug = ColorUtils.setAlphaComponent(a1, sugA1);
+        int c2_sug = ColorUtils.setAlphaComponent(a2, sugA2);
+        int c3_sug = ColorUtils.setAlphaComponent(a3, sugA3);
+
+        int c1_list = ColorUtils.setAlphaComponent(a1, listA1);
+        int c2_list = ColorUtils.setAlphaComponent(a2, listA2);
+        int c3_list = ColorUtils.setAlphaComponent(a3, listA3);
+
+        int c1_search = ColorUtils.setAlphaComponent(a1, searchA1);
+        int c2_search = ColorUtils.setAlphaComponent(a2, searchA2);
+        int c3_search = ColorUtils.setAlphaComponent(a3, searchA3);
+
+        // Curated balanced permutations across the 3 components
+        int[][][] permutations = {
+            // Permutation 0: Sug [A1, A2, A3], List [A3, A1, A2], Search [A2, A3, A1]
+            { { c1_sug, c2_sug, c3_sug }, { c3_list, c1_list, c2_list }, { c2_search, c3_search, c1_search } },
+            // Permutation 1: Sug [A2, A3, A1], List [A1, A2, A3], Search [A3, A1, A2]
+            { { c2_sug, c3_sug, c1_sug }, { c1_list, c2_list, c3_list }, { c3_search, c1_search, c2_search } },
+            // Permutation 2: Sug [A3, A1, A2], List [A2, A3, A1], Search [A1, A2, A3]
+            { { c3_sug, c1_sug, c2_sug }, { c2_list, c3_list, c1_list }, { c1_search, c2_search, c3_search } }
+        };
+
+        int perm = (mGradientPermutation++) % 3;
+
+        int[] colorsSug = permutations[perm][0];
+        int[] colorsList = permutations[perm][1];
+        int[] colorsSearch = permutations[perm][2];
+
+        // Harmonious natural diagonal angles: suggestions & search slope TL_BR, main list card slopes BL_TR
+        updateGradientLayer(mSuggestionsCardBackground, GradientDrawable.Orientation.TL_BR, colorsSug);
+        updateGradientLayer(mCardBackground, GradientDrawable.Orientation.BL_TR, colorsList);
+        if (mSearchContainer != null && mSearchContainer.getBackground() != null) {
+            updateGradientLayer(mSearchContainer.getBackground(), GradientDrawable.Orientation.TL_BR, colorsSearch);
+            mSearchContainer.invalidate();
+        }
+        invalidate();
+    }
+
+    private void updateGradientLayer(Drawable drawable, GradientDrawable.Orientation orientation, int[] colors) {
+        if (drawable instanceof LayerDrawable) {
+            LayerDrawable ld = (LayerDrawable) drawable;
+            if (ld.getNumberOfLayers() > 1) {
+                Drawable layer1 = ld.getDrawable(1);
+                if (layer1 instanceof GradientDrawable) {
+                    GradientDrawable gd = (GradientDrawable) layer1;
+                    gd.setOrientation(orientation);
+                    gd.setColors(colors);
+                }
+            }
         }
     }
 

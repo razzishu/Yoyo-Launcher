@@ -21,6 +21,16 @@
     <attr name="allAppsScrimColor" format="color" />
     <attr name="allAppsContainerColor" format="color" />
     <attr name="allAppsSuggestionsColor" format="color" />
+    <attr name="suggestionsRainbowStart" format="color" />
+    <attr name="suggestionsRainbowCenter" format="color" />
+    <attr name="suggestionsRainbowEnd" format="color" />
+    <attr name="allAppsRainbowStart" format="color" />
+    <attr name="allAppsRainbowCenter" format="color" />
+    <attr name="allAppsRainbowEnd" format="color" />
+    <attr name="searchRainbowStart" format="color" />
+    <attr name="searchRainbowCenter" format="color" />
+    <attr name="searchRainbowEnd" format="color" />
+    <attr name="searchRainbowStroke" format="color" />
     <attr name="allAppsListColor" format="color" />
     <attr name="allappsHeaderProtectionColor" format="color" />
     <attr name="allAppsNavBarScrimColor" format="color" />

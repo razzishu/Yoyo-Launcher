@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The Android Open Source Project -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="14dp"
+    android:height="12dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,3C7.79,3 3.97,4.6 1.05,7.24L12,21.5 22.95,7.24C20.03,4.6 16.21,3 12,3z M12,6.5c3.34,0 6.38,1.26 8.71,3.34L12,19.34 3.29,9.84C5.62,7.76 8.66,6.5 12,6.5z" />
+</vector>

@@ -125,6 +125,9 @@ constructor(@ApplicationContext private val encryptedContext: Context) {
     fun putSync(vararg itemsToValues: Pair<Item, Any>): Unit =
         prepareToPutValues(itemsToValues).forEach { it.commit() }
 
+    /** See referenced `putSync` method above. */
+    fun <T : Any> putSync(item: Item, value: T): Unit = putSync(item.to(value))
+
     /**
      * Updates the values stored in `SharedPreferences` for each corresponding Item-value pair. If
      * the item is boot aware, this method updates both the boot aware and the encrypted files. This

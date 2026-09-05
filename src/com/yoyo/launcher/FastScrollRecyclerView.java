@@ -26,6 +26,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.Nullable;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.yoyo.launcher.compat.AccessibilityManagerCompat;
@@ -142,14 +143,25 @@ public abstract class FastScrollRecyclerView extends RecyclerView  {
             return false;
         }
 
-        // If the RecyclerView is currently flinging or settling, do NOT allow container to scroll down.
-        if (getScrollState() == SCROLL_STATE_SETTLING) {
-            return false;
+        boolean isAtTop = !canScrollVertically(-1) || computeVerticalScrollOffset() <= 8;
+        if (!isAtTop) {
+            LayoutManager lm = getLayoutManager();
+            if (lm instanceof LinearLayoutManager) {
+                int firstPos = ((LinearLayoutManager) lm).findFirstVisibleItemPosition();
+                if (firstPos == 0) {
+                    View firstChild = lm.findViewByPosition(0);
+                    if (firstChild != null && firstChild.getTop() >= getPaddingTop() - 8) {
+                        isAtTop = true;
+                    }
+                }
+            }
         }
 
-        // IF scroller is at the very top OR there is no scroll bar because there is probably not
-        // enough items to scroll, THEN it's okay for the container to be pulled down.
-        return computeVerticalScrollOffset() <= 0;
+        if (isAtTop && getScrollState() != SCROLL_STATE_IDLE) {
+            stopScroll();
+        }
+
+        return isAtTop;
     }
 
     /**

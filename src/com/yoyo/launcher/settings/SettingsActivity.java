@@ -44,11 +44,19 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.ImageView;
+import android.widget.Toolbar;
+import android.window.BackEvent;
+import android.window.OnBackAnimationCallback;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -58,6 +66,7 @@ import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceGroupAdapter;
@@ -78,11 +87,13 @@ import com.yoyo.launcher.InvariantDeviceProfile;
 import com.yoyo.launcher.LauncherFiles;
 import com.yoyo.launcher.LauncherPrefs;
 import com.yoyo.launcher.R;
+import com.yoyo.launcher.Utilities;
 import com.yoyo.launcher.lineage.LineageUtils;
 import com.yoyo.launcher.lineage.trust.TrustAppsActivity;
 import com.yoyo.launcher.states.RotationHelper;
 import com.yoyo.launcher.util.DisplayController;
 import com.yoyo.launcher.util.SettingsCache;
+import com.yoyo.launcher.util.Themes;
 import com.android.settingslib.widget.SettingsBasePreferenceFragment;
 import com.android.settingslib.widget.SettingsThemeHelper;
 import com.google.android.material.tabs.TabLayout;
@@ -118,7 +129,6 @@ public class SettingsActivity extends FragmentActivity
     public static final String KEY_TRUST_APPS = "pref_trust_apps";
 
     private static final String KEY_SUGGESTIONS = "pref_suggestions";
-    private static final String KEY_SUGGESTIONS_USAGE_STATS = "pref_suggestions_usage_stats";
     private static final String SUGGESTIONS_PACKAGE = "com.google.android.as";
 
     private static final int[] TAB_TITLES = new int[] {
@@ -135,13 +145,21 @@ public class SettingsActivity extends FragmentActivity
             R.xml.launcher_app_drawer_preferences
     };
 
+    private Toolbar mSubToolbar;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.settings_activity);
 
-        setActionBar(findViewById(R.id.action_bar));
-        setTitle(R.string.settings_button_text);
+        mSubToolbar = findViewById(R.id.sub_action_bar);
+        if (mSubToolbar != null) {
+            mSubToolbar.setVisibility(View.GONE);
+            mSubToolbar.setNavigationOnClickListener(v -> handleBackPress());
+        }
+
+
+
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         WindowInsetsControllerCompat controller =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
@@ -161,10 +179,13 @@ public class SettingsActivity extends FragmentActivity
                 || intent.hasExtra(EXTRA_FRAGMENT_HIGHLIGHT_KEY);
         
         if (hasRoot) {
-            getActionBar().setDisplayHomeAsUpEnabled(true);
-            findViewById(R.id.tabs).setVisibility(View.GONE);
-            findViewById(R.id.view_pager).setVisibility(View.GONE);
-            findViewById(R.id.content_frame).setVisibility(View.VISIBLE);
+            if (mSubToolbar != null) {
+                mSubToolbar.setVisibility(View.VISIBLE);
+                mSubToolbar.setNavigationIcon(R.drawable.ic_arrow_back);
+                mSubToolbar.setNavigationOnClickListener(v -> handleBackPress());
+            }
+            View contentFrame = findViewById(R.id.content_frame);
+            if (contentFrame != null) contentFrame.setVisibility(View.VISIBLE);
 
             if (savedInstanceState == null) {
                 Bundle args = intent.getBundleExtra(EXTRA_FRAGMENT_ARGS);
@@ -193,13 +214,12 @@ public class SettingsActivity extends FragmentActivity
                 fm.beginTransaction().replace(R.id.content_frame, f).commit();
             }
         } else {
-            setTitle(R.string.settings_button_text);
-            findViewById(R.id.tabs).setVisibility(View.GONE);
-            findViewById(R.id.view_pager).setVisibility(View.GONE);
-            findViewById(R.id.content_frame).setVisibility(View.VISIBLE);
-            View actionBar = findViewById(R.id.action_bar);
-            if (actionBar != null) {
-                actionBar.setVisibility(View.GONE);
+            View contentFrame = findViewById(R.id.content_frame);
+            if (contentFrame != null) contentFrame.setVisibility(View.VISIBLE);
+            if (mSubToolbar != null) {
+                mSubToolbar.setVisibility(View.GONE);
+                mSubToolbar.setTitle("");
+                mSubToolbar.setNavigationIcon(null);
             }
 
             if (savedInstanceState == null) {
@@ -208,22 +228,257 @@ public class SettingsActivity extends FragmentActivity
                         .commit();
             }
 
-            getSupportFragmentManager().addOnBackStackChangedListener(() -> {
-                int backStackCount = getSupportFragmentManager().getBackStackEntryCount();
-                if (backStackCount == 0) {
-                    setTitle(R.string.settings_button_text);
-                    if (actionBar != null) {
-                        actionBar.setVisibility(View.GONE);
-                    }
-                    if (getActionBar() != null) {
-                        getActionBar().setDisplayHomeAsUpEnabled(false);
-                    }
-                } else {
-                    if (actionBar != null) {
-                        actionBar.setVisibility(View.VISIBLE);
+            getSupportFragmentManager().addOnBackStackChangedListener(this::updateToolbarState);
+            setupPredictiveBack();
+        }
+    }
+
+    private OnBackAnimationCallback mFrameworkBackAnimationCallback;
+    private OnBackInvokedCallback mFrameworkBackInvokedCallback;
+
+    private void setupPredictiveBack() {
+        if (Utilities.ATLEAST_U) {
+            mFrameworkBackAnimationCallback = new OnBackAnimationCallback() {
+                private boolean mIsSubFragmentBack = false;
+                private View mSubFragmentView = null;
+                private View mMainFragmentView = null;
+                private View mRootContentView = null;
+                private int mSwipeEdge = BackEvent.EDGE_LEFT;
+
+                @Override
+                public void onBackStarted(@NonNull BackEvent backEvent) {
+                    mSwipeEdge = backEvent.getSwipeEdge();
+                    int backStackCount = getSupportFragmentManager().getBackStackEntryCount();
+                    mIsSubFragmentBack = (backStackCount > 0);
+
+                    if (mIsSubFragmentBack) {
+                        ViewGroup container = findViewById(R.id.content_frame);
+                        if (container != null && container.getChildCount() > 1) {
+                            mSubFragmentView = container.getChildAt(container.getChildCount() - 1);
+                            mMainFragmentView = container.getChildAt(container.getChildCount() - 2);
+                            if (mMainFragmentView != null) {
+                                mMainFragmentView.setVisibility(View.VISIBLE);
+                                mMainFragmentView.setTranslationX(-mMainFragmentView.getWidth() * 0.25f);
+                                mMainFragmentView.setAlpha(0.7f);
+                            }
+                        } else if (container != null && container.getChildCount() == 1) {
+                            mSubFragmentView = container.getChildAt(0);
+                            mMainFragmentView = null;
+                        }
+                    } else {
+                        mRootContentView = findViewById(R.id.content_parent);
+                        if (mRootContentView != null) {
+                            mRootContentView.setPivotX(mSwipeEdge == BackEvent.EDGE_LEFT ? 0 : mRootContentView.getWidth());
+                            mRootContentView.setPivotY(backEvent.getTouchY());
+                        }
                     }
                 }
-            });
+
+                @Override
+                public void onBackProgressed(@NonNull BackEvent backEvent) {
+                    float progress = backEvent.getProgress();
+                    float p = 1.0f - (float) Math.pow(1.0f - progress, 2);
+
+                    if (mIsSubFragmentBack) {
+                        if (mSubFragmentView != null) {
+                            float width = mSubFragmentView.getWidth();
+                            mSubFragmentView.setTranslationX(p * width);
+                            mSubFragmentView.setAlpha(1.0f - (p * 0.3f));
+                        }
+                        if (mMainFragmentView != null) {
+                            float width = mMainFragmentView.getWidth();
+                            mMainFragmentView.setTranslationX(-width * 0.25f * (1.0f - p));
+                            mMainFragmentView.setAlpha(0.7f + (0.3f * p));
+                        }
+                        if (mSubToolbar != null) {
+                            mSubToolbar.setTranslationX(p * mSubToolbar.getWidth());
+                            mSubToolbar.setAlpha(1.0f - p);
+                        }
+                    } else {
+                        if (mRootContentView != null) {
+                            float scale = 1.0f - (p * 0.12f);
+                            mRootContentView.setScaleX(scale);
+                            mRootContentView.setScaleY(scale);
+                            float shift = (mSwipeEdge == BackEvent.EDGE_LEFT ? 1 : -1) * p * (mRootContentView.getWidth() * 0.05f);
+                            mRootContentView.setTranslationX(shift);
+                        }
+                    }
+                }
+
+                @Override
+                public void onBackInvoked() {
+                    if (mIsSubFragmentBack) {
+                        final View subViewToAnimate = mSubFragmentView;
+                        final View mainViewToAnimate = mMainFragmentView;
+                        if (subViewToAnimate != null) {
+                            subViewToAnimate.animate()
+                                    .translationX(subViewToAnimate.getWidth())
+                                    .alpha(0f)
+                                    .setDuration(180)
+                                    .withEndAction(() -> {
+                                        if (mainViewToAnimate != null) {
+                                            mainViewToAnimate.setTranslationX(0f);
+                                            mainViewToAnimate.setAlpha(1f);
+                                        }
+                                        getSupportFragmentManager().popBackStack();
+                                    })
+                                    .start();
+                        } else {
+                            getSupportFragmentManager().popBackStack();
+                        }
+                        if (mainViewToAnimate != null) {
+                            mainViewToAnimate.animate()
+                                    .translationX(0f)
+                                    .alpha(1f)
+                                    .setDuration(180)
+                                    .start();
+                        }
+                        if (mSubToolbar != null) {
+                            mSubToolbar.setVisibility(View.GONE);
+                            mSubToolbar.setTranslationX(0f);
+                            mSubToolbar.setAlpha(1f);
+                        }
+                    } else {
+                        if (mRootContentView != null) {
+                            mRootContentView.animate()
+                                    .scaleX(0.80f)
+                                    .scaleY(0.80f)
+                                    .alpha(0f)
+                                    .setDuration(150)
+                                    .withEndAction(() -> {
+                                        finish();
+                                        overridePendingTransition(0, 0);
+                                    })
+                                    .start();
+                        } else {
+                            finish();
+                        }
+                    }
+                    mSubFragmentView = null;
+                    mMainFragmentView = null;
+                    mRootContentView = null;
+                }
+
+                @Override
+                public void onBackCancelled() {
+                    if (mIsSubFragmentBack) {
+                        final View subViewToRestore = mSubFragmentView;
+                        final View mainViewToRestore = mMainFragmentView;
+                        if (subViewToRestore != null) {
+                            subViewToRestore.animate()
+                                    .translationX(0f)
+                                    .alpha(1f)
+                                    .setDuration(200)
+                                    .start();
+                        }
+                        if (mainViewToRestore != null) {
+                            mainViewToRestore.animate()
+                                    .translationX(-mainViewToRestore.getWidth() * 0.25f)
+                                    .alpha(0.7f)
+                                    .setDuration(200)
+                                    .withEndAction(() -> {
+                                        mainViewToRestore.setVisibility(View.GONE);
+                                    })
+                                    .start();
+                        }
+                        if (mSubToolbar != null) {
+                            mSubToolbar.animate()
+                                    .translationX(0f)
+                                    .alpha(1f)
+                                    .setDuration(200)
+                                    .start();
+                        }
+                    } else {
+                        if (mRootContentView != null) {
+                            mRootContentView.animate()
+                                    .scaleX(1.0f)
+                                    .scaleY(1.0f)
+                                    .translationX(0f)
+                                    .setDuration(200)
+                                    .start();
+                        }
+                    }
+                    mSubFragmentView = null;
+                    mMainFragmentView = null;
+                    mRootContentView = null;
+                }
+            };
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, mFrameworkBackAnimationCallback);
+        } else if (Utilities.ATLEAST_T) {
+            mFrameworkBackInvokedCallback = this::handleBackPress;
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    OnBackInvokedDispatcher.PRIORITY_DEFAULT, mFrameworkBackInvokedCallback);
+        }
+    }
+
+    public void handleBackPress() {
+        if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
+            getSupportFragmentManager().popBackStack();
+        } else {
+            finish();
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        handleBackPress();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (Utilities.ATLEAST_U && mFrameworkBackAnimationCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(mFrameworkBackAnimationCallback);
+        } else if (Utilities.ATLEAST_T && mFrameworkBackInvokedCallback != null) {
+            getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(mFrameworkBackInvokedCallback);
+        }
+    }
+
+    public void updateToolbarState() {
+        int backStackCount = getSupportFragmentManager().getBackStackEntryCount();
+        boolean isMainScreen = (backStackCount == 0);
+        if (isMainScreen) {
+            if (mSubToolbar != null && mSubToolbar.getVisibility() == View.VISIBLE) {
+                mSubToolbar.animate()
+                        .alpha(0f)
+                        .setDuration(200)
+                        .withEndAction(() -> {
+                            mSubToolbar.setVisibility(View.GONE);
+                            mSubToolbar.setAlpha(1f);
+                            mSubToolbar.setTranslationX(0f);
+                            mSubToolbar.setTitle("");
+                            mSubToolbar.setNavigationIcon(null);
+                        })
+                        .start();
+            }
+            ViewGroup container = findViewById(R.id.content_frame);
+            if (container != null && container.getChildCount() > 0) {
+                View mainView = container.getChildAt(0);
+                if (mainView != null) {
+                    mainView.setVisibility(View.VISIBLE);
+                    mainView.setTranslationX(0f);
+                    mainView.setAlpha(1f);
+                }
+            }
+        } else {
+            if (mSubToolbar != null) {
+                mSubToolbar.animate().cancel();
+                mSubToolbar.setVisibility(View.VISIBLE);
+                mSubToolbar.setAlpha(1f);
+                mSubToolbar.setTranslationX(0f);
+                mSubToolbar.setNavigationIcon(R.drawable.ic_arrow_back);
+                mSubToolbar.setNavigationOnClickListener(v -> handleBackPress());
+            }
+        }
+    }
+
+    @Override
+    protected void onTitleChanged(CharSequence title, int color) {
+        super.onTitleChanged(title, color);
+        int backStackCount = getSupportFragmentManager().getBackStackEntryCount();
+        if (backStackCount > 0 && mSubToolbar != null && !TextUtils.isEmpty(title)) {
+            mSubToolbar.setTitle(title);
         }
     }
 
@@ -237,19 +492,28 @@ public class SettingsActivity extends FragmentActivity
             fragment = LauncherSettingsFragment.newInstance(xmlResId);
         }
 
-        getSupportFragmentManager().beginTransaction()
-                .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out, android.R.anim.fade_in, android.R.anim.fade_out)
-                .replace(R.id.content_frame, fragment)
+        Fragment current = getSupportFragmentManager().findFragmentById(R.id.content_frame);
+        FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+        ft.setCustomAnimations(
+                R.anim.settings_fragment_enter,
+                R.anim.settings_fragment_exit,
+                R.anim.settings_fragment_pop_enter,
+                R.anim.settings_fragment_pop_exit);
+        if (current != null) {
+            ft.hide(current);
+        }
+        ft.add(R.id.content_frame, fragment)
                 .addToBackStack(null)
                 .commit();
 
-        setTitle(title);
-        View actionBar = findViewById(R.id.action_bar);
-        if (actionBar != null) {
-            actionBar.setVisibility(View.VISIBLE);
-        }
-        if (getActionBar() != null) {
-            getActionBar().setDisplayHomeAsUpEnabled(true);
+        if (mSubToolbar != null) {
+            mSubToolbar.animate().cancel();
+            mSubToolbar.setVisibility(View.VISIBLE);
+            mSubToolbar.setAlpha(1f);
+            mSubToolbar.setTranslationX(0f);
+            mSubToolbar.setTitle(title);
+            mSubToolbar.setNavigationIcon(R.drawable.ic_arrow_back);
+            mSubToolbar.setNavigationOnClickListener(v -> handleBackPress());
         }
     }
 
@@ -265,9 +529,31 @@ public class SettingsActivity extends FragmentActivity
             f.setArguments(args);
             ((DialogFragment) f).show(fm, key);
         } else {
-            startActivity(new Intent(this, SettingsActivity.class)
-                    .putExtra(EXTRA_FRAGMENT, fragment)
-                    .putExtra(EXTRA_FRAGMENT_ARGS, args));
+            if (args != null) {
+                f.setArguments(args);
+            }
+            Fragment current = fm.findFragmentById(R.id.content_frame);
+            FragmentTransaction ft = fm.beginTransaction();
+            ft.setCustomAnimations(
+                    R.anim.settings_fragment_enter,
+                    R.anim.settings_fragment_exit,
+                    R.anim.settings_fragment_pop_enter,
+                    R.anim.settings_fragment_pop_exit);
+            if (current != null) {
+                ft.hide(current);
+            }
+            ft.add(R.id.content_frame, f)
+                    .addToBackStack(null)
+                    .commit();
+
+            if (mSubToolbar != null) {
+                mSubToolbar.animate().cancel();
+                mSubToolbar.setVisibility(View.VISIBLE);
+                mSubToolbar.setAlpha(1f);
+                mSubToolbar.setTranslationX(0f);
+                mSubToolbar.setNavigationIcon(R.drawable.ic_arrow_back);
+                mSubToolbar.setNavigationOnClickListener(v -> handleBackPress());
+            }
         }
         return true;
     }
@@ -275,6 +561,18 @@ public class SettingsActivity extends FragmentActivity
     @Override
     public boolean onPreferenceStartFragment(
             PreferenceFragmentCompat preferenceFragment, Preference pref) {
+        if (!TextUtils.isEmpty(pref.getFragment())) {
+            try {
+                Class<?> clazz = Class.forName(pref.getFragment());
+                if (DialogFragment.class.isAssignableFrom(clazz)) {
+                    return startPreference(pref.getFragment(), pref.getExtras(), pref.getKey());
+                }
+            } catch (ClassNotFoundException ignored) {
+            }
+            String title = pref.getTitle() != null ? pref.getTitle().toString() : "";
+            openSubSettings(pref.getFragment(), 0, title);
+            return true;
+        }
         return startPreference(pref.getFragment(), pref.getExtras(), pref.getKey());
     }
 
@@ -287,17 +585,17 @@ public class SettingsActivity extends FragmentActivity
             args.putInt(LauncherSettingsFragment.EXTRA_PREFERENCE_XML,
                     caller.getArguments().getInt(LauncherSettingsFragment.EXTRA_PREFERENCE_XML));
         }
-        return startPreference(getString(R.string.settings_fragment_name), args, pref.getKey());
+        boolean started = startPreference(getString(R.string.settings_fragment_name), args, pref.getKey());
+        if (started && mSubToolbar != null && pref.getTitle() != null) {
+            mSubToolbar.setTitle(pref.getTitle());
+        }
+        return started;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
-            if (getSupportFragmentManager().getBackStackEntryCount() > 0) {
-                getSupportFragmentManager().popBackStack();
-            } else {
-                finish();
-            }
+            handleBackPress();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -472,6 +770,40 @@ public class SettingsActivity extends FragmentActivity
             pref.getExtras().putInt("badge_color", badgeColorRes);
         }
 
+        private boolean checkUsageStatsPermission(Context context) {
+            AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+            if (appOps == null) return false;
+            int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    Process.myUid(), context.getPackageName());
+            return mode == AppOpsManager.MODE_ALLOWED;
+        }
+
+        private void showUsageAccessPrompt(Context context, TwoStatePreference preference) {
+            new AlertDialog.Builder(context)
+                    .setTitle(R.string.usage_access_dialog_title)
+                    .setMessage(R.string.usage_access_dialog_message)
+                    .setPositiveButton(R.string.grant_permission, (dialog, which) -> {
+                        try {
+                            Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+                            intent.setData(Uri.fromParts("package", context.getPackageName(), null));
+                            startActivity(intent);
+                        } catch (Exception e) {
+                            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+                        }
+                    })
+                    .setNegativeButton(android.R.string.cancel, (dialog, which) -> {
+                        if (preference != null) {
+                            preference.setChecked(false);
+                        }
+                    })
+                    .setOnCancelListener(dialog -> {
+                        if (preference != null) {
+                            preference.setChecked(false);
+                        }
+                    })
+                    .show();
+        }
+
         private Preference findPreferenceAt(PreferenceGroup group, int position, int[] counter) {
             for (int i = 0; i < group.getPreferenceCount(); i++) {
                 Preference pref = group.getPreference(i);
@@ -511,7 +843,8 @@ public class SettingsActivity extends FragmentActivity
                     }
                     ImageView iconView = (ImageView) holder.findViewById(android.R.id.icon);
                     if (iconView != null) {
-                        iconView.setColorFilter(0xFF1F1F1F);
+                        int iconColor = Themes.getAttrColor(holder.itemView.getContext(), android.R.attr.textColorPrimary);
+                        iconView.setColorFilter(iconColor);
                     }
                 }
 
@@ -648,39 +981,39 @@ public class SettingsActivity extends FragmentActivity
                     }
                     return true;
 
-                case "pref_suggestions_usage_stats":
-                    applyCardStyle(preference, R.drawable.ic_chart, R.color.badge_color_amber);
-                    AppOpsManager appOps = (AppOpsManager) getContext().getSystemService(Context.APP_OPS_SERVICE);
-                    int mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,
-                            Process.myUid(), getContext().getPackageName());
-                    if (mode == AppOpsManager.MODE_ALLOWED) {
-                        return false;
-                    }
-                    preference.setOnPreferenceClickListener(p -> {
-                        try {
-                            Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
-                            intent.setData(Uri.fromParts("package", getContext().getPackageName(), null));
-                            startActivity(intent);
-                        } catch (Exception e) {
-                            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
-                        }
-                        return true;
-                    });
-                    return true;
-
                 case "pref_suggestions_all_apps":
                     applyCardStyle(preference, R.drawable.ic_grid_layout, R.color.badge_color_green);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean enabled = (boolean) newValue;
+                        Context ctx = pref.getContext();
+                        if (enabled && !checkUsageStatsPermission(ctx)) {
+                            showUsageAccessPrompt(ctx, (TwoStatePreference) pref);
+                            return false;
+                        }
+                        LauncherPrefs.get(ctx).putSync(LauncherPrefs.SUGGESTIONS_ALL_APPS, enabled);
+                        return true;
+                    });
                     break;
 
                 case "pref_suggestions_hotseat":
                     applyCardStyle(preference, R.drawable.ic_lock_home, R.color.badge_color_blue);
+                    preference.setOnPreferenceChangeListener((pref, newValue) -> {
+                        boolean enabled = (boolean) newValue;
+                        Context ctx = pref.getContext();
+                        if (enabled && !checkUsageStatsPermission(ctx)) {
+                            showUsageAccessPrompt(ctx, (TwoStatePreference) pref);
+                            return false;
+                        }
+                        LauncherPrefs.get(ctx).putSync(LauncherPrefs.SUGGESTIONS_HOTSEAT, enabled);
+                        return true;
+                    });
                     break;
 
                 case "pref_workspace_lock":
                     applyCardStyle(preference, R.drawable.ic_lock_home, R.color.badge_color_red);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean val = (boolean) newValue;
-                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.WORKSPACE_LOCK, val);
+                        LauncherPrefs.get(pref.getContext()).putSync(LauncherPrefs.WORKSPACE_LOCK, val);
                         return true;
                     });
                     break;
@@ -689,7 +1022,7 @@ public class SettingsActivity extends FragmentActivity
                     applyCardStyle(preference, R.drawable.ic_add_home, R.color.badge_color_green);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean val = (boolean) newValue;
-                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.ADD_ICON_TO_HOME, val);
+                        LauncherPrefs.get(pref.getContext()).putSync(LauncherPrefs.ADD_ICON_TO_HOME, val);
                         return true;
                     });
                     break;
@@ -698,7 +1031,7 @@ public class SettingsActivity extends FragmentActivity
                     applyCardStyle(preference, R.drawable.ic_google_feed, R.color.badge_color_sky_blue);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean val = (boolean) newValue;
-                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.ENABLE_MINUS_ONE, val);
+                        LauncherPrefs.get(pref.getContext()).putSync(LauncherPrefs.ENABLE_MINUS_ONE, val);
                         return true;
                     });
                     return launcherApps != null &&
@@ -708,7 +1041,7 @@ public class SettingsActivity extends FragmentActivity
                     applyCardStyle(preference, R.drawable.ic_sleep_gesture, R.color.badge_color_indigo);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean val = (boolean) newValue;
-                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.SLEEP_GESTURE, val);
+                        LauncherPrefs.get(pref.getContext()).putSync(LauncherPrefs.SLEEP_GESTURE, val);
                         return true;
                     });
                     break;
@@ -717,7 +1050,7 @@ public class SettingsActivity extends FragmentActivity
                     applyCardStyle(preference, R.drawable.ic_labels, R.color.badge_color_mint);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean val = (boolean) newValue;
-                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.SHOW_DESKTOP_LABELS, val);
+                        LauncherPrefs.get(pref.getContext()).putSync(LauncherPrefs.SHOW_DESKTOP_LABELS, val);
                         return true;
                     });
                     break;
@@ -727,7 +1060,7 @@ public class SettingsActivity extends FragmentActivity
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean qsbVal = (boolean) newValue;
                         Context ctx = pref.getContext();
-                        LauncherPrefs.get(ctx).put(LauncherPrefs.HOTSEAT_QSB, qsbVal);
+                        LauncherPrefs.get(ctx).putSync(LauncherPrefs.HOTSEAT_QSB, qsbVal);
                         InvariantDeviceProfile.INSTANCE.get(ctx).onConfigChanged();
                         return true;
                     });
@@ -740,7 +1073,7 @@ public class SettingsActivity extends FragmentActivity
                     applyCardStyle(preference, R.drawable.ic_keyboard, R.color.badge_color_light_green);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean val = (boolean) newValue;
-                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.DRAWER_OPEN_KEYBOARD, val);
+                        LauncherPrefs.get(pref.getContext()).putSync(LauncherPrefs.DRAWER_OPEN_KEYBOARD, val);
                         return true;
                     });
                     break;
@@ -749,7 +1082,7 @@ public class SettingsActivity extends FragmentActivity
                     applyCardStyle(preference, R.drawable.ic_labels, R.color.badge_color_lilac);
                     preference.setOnPreferenceChangeListener((pref, newValue) -> {
                         boolean val = (boolean) newValue;
-                        LauncherPrefs.get(pref.getContext()).put(LauncherPrefs.SHOW_DRAWER_LABELS, val);
+                        LauncherPrefs.get(pref.getContext()).putSync(LauncherPrefs.SHOW_DRAWER_LABELS, val);
                         return true;
                     });
                     break;

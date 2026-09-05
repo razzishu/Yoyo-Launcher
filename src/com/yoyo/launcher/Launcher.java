@@ -58,8 +58,11 @@ import static com.yoyo.launcher.LauncherPrefs.ALLAPPS_THEMED_ICONS;
 import static com.yoyo.launcher.LauncherPrefs.DRAWER_OPEN_KEYBOARD;
 import static com.yoyo.launcher.LauncherPrefs.ENABLE_MINUS_ONE;
 import static com.yoyo.launcher.LauncherPrefs.FIXED_LANDSCAPE_MODE;
+import static com.yoyo.launcher.LauncherPrefs.HOTSEAT_QSB;
 import static com.yoyo.launcher.LauncherPrefs.SHOW_DESKTOP_LABELS;
 import static com.yoyo.launcher.LauncherPrefs.SHOW_DRAWER_LABELS;
+import static com.yoyo.launcher.LauncherPrefs.SUGGESTIONS_ALL_APPS;
+import static com.yoyo.launcher.LauncherPrefs.SUGGESTIONS_HOTSEAT;
 import static com.yoyo.launcher.LauncherSettings.Favorites.CONTAINER_ALL_APPS;
 import static com.yoyo.launcher.LauncherSettings.Favorites.CONTAINER_ALL_APPS_PREDICTION;
 import static com.yoyo.launcher.LauncherSettings.Favorites.CONTAINER_DESKTOP;
@@ -165,6 +168,8 @@ import android.widget.Toast;
 import com.yoyo.launcher.util.LauncherAccessibilityService;
 import android.window.BackEvent;
 import android.window.OnBackAnimationCallback;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
@@ -559,7 +564,8 @@ public class Launcher extends StatefulActivity<LauncherState>
 
         mRotationHelper.initialize();
         LauncherPrefs.get(this).addListener(this, SHOW_DESKTOP_LABELS, SHOW_DRAWER_LABELS, 
-                ALLAPPS_THEMED_ICONS, ENABLE_MINUS_ONE);
+                ALLAPPS_THEMED_ICONS, ENABLE_MINUS_ONE, HOTSEAT_QSB, 
+                SUGGESTIONS_ALL_APPS, SUGGESTIONS_HOTSEAT);
         TraceHelper.INSTANCE.endSection();
 
         getWindow().setSoftInputMode(LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
@@ -727,6 +733,21 @@ public class Launcher extends StatefulActivity<LauncherState>
             mModel.forceReload();
         } else if (ENABLE_MINUS_ONE.getSharedPrefKey().equals(key)) {
             updateOverlay();
+        } else if (HOTSEAT_QSB.getSharedPrefKey().equals(key)) {
+            if (mHotseat != null) {
+                mHotseat.updateQsbVisibility();
+            }
+        } else if (SUGGESTIONS_ALL_APPS.getSharedPrefKey().equals(key)) {
+            if (mAppsView != null && mAppsView.getFloatingHeaderView() != null) {
+                PredictionRowView row = mAppsView.getFloatingHeaderView().findFixedRowByType(PredictionRowView.class);
+                if (row != null) {
+                    row.onSuggestionsPrefChanged();
+                }
+            }
+        } else if (SUGGESTIONS_HOTSEAT.getSharedPrefKey().equals(key)) {
+            if (mHotseatOrganizer != null && !LauncherPrefs.get(this).get(SUGGESTIONS_HOTSEAT)) {
+                mHotseatOrganizer.setPredictedItems(Collections.emptyList());
+            }
         }
     }
 
@@ -1272,6 +1293,16 @@ public class Launcher extends StatefulActivity<LauncherState>
         TraceHelper.INSTANCE.beginSection(ON_RESUME_EVT);
         super.onResume();
 
+        if (mHotseat != null) {
+            mHotseat.updateQsbVisibility();
+        }
+        if (mAppsView != null && mAppsView.getFloatingHeaderView() != null) {
+            PredictionRowView row = mAppsView.getFloatingHeaderView().findFixedRowByType(PredictionRowView.class);
+            if (row != null) {
+                row.onSuggestionsPrefChanged();
+            }
+        }
+
         if (mDeferOverlayCallbacks) {
             scheduleDeferredCheck();
         } else {
@@ -1810,6 +1841,14 @@ public class Launcher extends StatefulActivity<LauncherState>
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (mBackCallbackRegistered) {
+            if (Utilities.ATLEAST_U && mFrameworkBackAnimationCallback != null) {
+                getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(mFrameworkBackAnimationCallback);
+            } else if (Utilities.ATLEAST_T && mFrameworkBackInvokedCallback != null) {
+                getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(mFrameworkBackInvokedCallback);
+            }
+            mBackCallbackRegistered = false;
+        }
         ACTIVITY_TRACKER.onContextDestroyed(this);
 
         SettingsCache.INSTANCE.get(this).unregister(TOUCHPAD_NATURAL_SCROLLING,
@@ -2500,34 +2539,16 @@ public class Launcher extends StatefulActivity<LauncherState>
     }
 
     /**
-     * Plays a brief zoom-in animation on the workspace when the user returns to the home screen
-     * from an external app via the home gesture. This replaces the all-apps drawer-close animation
-     * (which would show the drawer sliding down and icons drifting from the top) with a clean
-     * scale + fade-in that feels like "arriving at home".
-     *
-     * Scale: 0.96 → 1.0, Alpha: 0.85 → 1.0, Duration: 200ms, Interpolator: EMPHASIZED_DECELERATE
+     * Resets DragLayer scale and alpha when the user returns to the home screen
+     * from an external app via the home gesture.
      */
     protected void playReturnToHomeZoomAnimation() {
         final View animTarget = getDragLayer();
         if (animTarget == null) return;
 
-        // Reset to start values
-        animTarget.setScaleX(0.96f);
-        animTarget.setScaleY(0.96f);
-        animTarget.setAlpha(0.85f);
-
-        animTarget.animate()
-                .scaleX(1f)
-                .scaleY(1f)
-                .alpha(1f)
-                .setDuration(200)
-                .setInterpolator(EMPHASIZED_DECELERATE)
-                .withEndAction(() -> {
-                    animTarget.setScaleX(1f);
-                    animTarget.setScaleY(1f);
-                    animTarget.setAlpha(1f);
-                })
-                .start();
+        animTarget.setScaleX(1f);
+        animTarget.setScaleY(1f);
+        animTarget.setAlpha(1f);
     }
 
 
@@ -2792,16 +2813,89 @@ public class Launcher extends StatefulActivity<LauncherState>
         mBackPressedHandlers.remove(callback);
     }
 
+    private boolean mBackCallbackRegistered = false;
+    private OnBackAnimationCallback mFrameworkBackAnimationCallback;
+    private OnBackInvokedCallback mFrameworkBackInvokedCallback;
+
+    @Override
+    protected void registerBackDispatcher() {
+        // Managed dynamically in updateBackDispatcher via updateDisallowBack
+    }
+
+    private void updateBackDispatcher(boolean disableBack) {
+        if (Utilities.ATLEAST_U) {
+            if (mFrameworkBackAnimationCallback == null) {
+                mFrameworkBackAnimationCallback = new OnBackAnimationCallback() {
+                    private OnBackAnimationCallback mActiveHandler;
+
+                    @Override
+                    public void onBackStarted(@NonNull BackEvent backEvent) {
+                        mActiveHandler = getOnBackAnimationCallback();
+                        if (mActiveHandler != null) {
+                            mActiveHandler.onBackStarted(backEvent);
+                        }
+                    }
+
+                    @Override
+                    public void onBackProgressed(@NonNull BackEvent backEvent) {
+                        if (mActiveHandler != null) {
+                            mActiveHandler.onBackProgressed(backEvent);
+                        }
+                    }
+
+                    @Override
+                    public void onBackInvoked() {
+                        if (mActiveHandler != null) {
+                            mActiveHandler.onBackInvoked();
+                            mActiveHandler = null;
+                        } else {
+                            onBackPressed();
+                        }
+                    }
+
+                    @Override
+                    public void onBackCancelled() {
+                        if (mActiveHandler != null) {
+                            mActiveHandler.onBackCancelled();
+                            mActiveHandler = null;
+                        }
+                    }
+                };
+            }
+            if (!disableBack && !mBackCallbackRegistered) {
+                getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                        OnBackInvokedDispatcher.PRIORITY_DEFAULT, mFrameworkBackAnimationCallback);
+                mBackCallbackRegistered = true;
+            } else if (disableBack && mBackCallbackRegistered) {
+                getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(mFrameworkBackAnimationCallback);
+                mBackCallbackRegistered = false;
+            }
+        } else if (Utilities.ATLEAST_T) {
+            if (mFrameworkBackInvokedCallback == null) {
+                mFrameworkBackInvokedCallback = this::onBackPressed;
+            }
+            if (!disableBack && !mBackCallbackRegistered) {
+                getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                        OnBackInvokedDispatcher.PRIORITY_DEFAULT, mFrameworkBackInvokedCallback);
+                mBackCallbackRegistered = true;
+            } else if (disableBack && mBackCallbackRegistered) {
+                getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(mFrameworkBackInvokedCallback);
+                mBackCallbackRegistered = false;
+            }
+        }
+    }
+
     private void updateDisallowBack() {
         LauncherRootView rv = getRootView();
+        boolean isSplitSelectionEnabled = isSplitSelectionActive();
+        View topOpenFloatingView = AbstractFloatingView.getTopOpenView(this);
+        boolean disableBack = getStateManager().getState() == NORMAL
+                && (topOpenFloatingView == null || topOpenFloatingView instanceof ListenerView)
+                && !isSplitSelectionEnabled;
         if (rv != null) {
-            boolean isSplitSelectionEnabled = isSplitSelectionActive();
-            View topOpenFloatingView = AbstractFloatingView.getTopOpenView(this);
-            boolean disableBack = getStateManager().getState() == NORMAL
-                    && (topOpenFloatingView == null || topOpenFloatingView instanceof ListenerView)
-                    && !isSplitSelectionEnabled;
             rv.setDisallowBackGesture(disableBack);
         }
+        updateBackDispatcher(disableBack);
     }
 
     /** To be overridden by subclasses */

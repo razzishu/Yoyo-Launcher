@@ -9,54 +9,9 @@
         android:persistent="false"
         android:widgetLayout="@layout/notification_pref_warning" />
 
-    <SwitchPreferenceCompat
-        android:key="pref_allowRotation"
-        android:title="@string/allow_rotation_title"
-        android:summary="@string/allow_rotation_desc"
-        android:defaultValue="@bool/config_allowRotation"
-        android:persistent="true"
-        launcher:logIdOn="615"
-        launcher:logIdOff="616" />
-
-    <ListPreference
-        android:key="pref_launcher_layout"
-        android:title="@string/pref_launcher_layout_title"
-        android:summary="@string/pref_launcher_layout_summary"
-        android:entries="@array/launcher_layout_entries"
-        android:entryValues="@array/launcher_layout_values"
-        android:defaultValue="5_columns"
-        android:persistent="true"
-        launcher:iconSpaceReserved="false" />
-
     <Preference
         android:key="pref_trust_apps"
-        android:title="@string/trust_apps_manager_name" />
-
-    <androidx.preference.PreferenceScreen
-        android:key="pref_suggestions"
-        android:title="@string/pref_suggestions_title"
-        android:summary="@string/pref_suggestions_summary"
-        android:persistent="false">
-
-        <Preference
-            android:key="pref_suggestions_usage_stats"
-            android:title="@string/suggestions_usage_stats_title"
-            android:summary="@string/suggestions_usage_stats_summary" />
-
-        <SwitchPreferenceCompat
-            android:key="pref_suggestions_all_apps"
-            android:title="@string/suggestions_all_apps_title"
-            android:summary="@string/suggestions_all_apps_summary"
-            android:defaultValue="true"
-            android:persistent="true" />
-
-        <SwitchPreferenceCompat
-            android:key="pref_suggestions_hotseat"
-            android:title="@string/suggestions_home_screen_title"
-            android:summary="@string/suggestions_home_screen_summary"
-            android:defaultValue="true"
-            android:persistent="true" />
-
-    </androidx.preference.PreferenceScreen>
+        android:title="@string/trust_apps_manager_name"
+        android:summary="Manage hidden and biometric-protected applications" />
 
 </androidx.preference.PreferenceScreen>

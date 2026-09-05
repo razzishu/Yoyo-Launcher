@@ -305,6 +305,11 @@ public class AllAppsTransitionController
         mAllAppScale.updateValue(scaleProgress);
     }
 
+    @Override
+    public void onBackCancelled(LauncherState toState) {
+        mAllAppScale.animateToValue(1f).start();
+    }
+
     private void onScaleProgressChanged() {
         final float scaleProgress = mAllAppScale.value;
         SCALE_PROPERTY.set(mLauncher.getAppsView(), scaleProgress);
@@ -380,6 +385,9 @@ public class AllAppsTransitionController
     public void setStateWithAnimation(LauncherState toState,
             StateAnimationConfig config, PendingAnimation builder) {
         if (mLauncher.isInState(ALL_APPS) && !ALL_APPS.equals(toState)) {
+            if (mAllAppScale.value < 1f) {
+                builder.setFloat(mAllAppScale, AnimatedFloat.VALUE, 1f, EMPHASIZED_DECELERATE);
+            }
             builder.addEndListener(success -> {
                 // Reset pull back progress and alpha after switching states.
                 ALL_APPS_PULL_BACK_TRANSLATION.set(this, ALL_APPS_PULL_BACK_TRANSLATION_DEFAULT);

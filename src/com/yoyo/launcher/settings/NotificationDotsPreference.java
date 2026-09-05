@@ -85,25 +85,47 @@ public class NotificationDotsPreference extends Preference
                 Settings.Secure.getUriFor(NOTIFICATION_ENABLED_LISTENERS),
                 false, mListenerListObserver);
         updateUI();
+        updateIntent();
+    }
 
-        // Update intent
+    private void updateIntent() {
         Bundle extras = new Bundle();
         extras.putString(EXTRA_FRAGMENT_HIGHLIGHT_KEY, "notification_badging");
 
+        ComponentName cn = new ComponentName(getContext(), NotificationListener.class);
+
+        // Try OEM / Android notification settings
         Intent intent = new Intent("android.settings.NOTIFICATION_SETTINGS")
                 .putExtra(EXTRA_SHOW_FRAGMENT_ARGS, extras);
-        
-        // Check if intent is resolvable
+
         if (getContext().getPackageManager().resolveActivity(intent, 0) != null) {
             setIntent(intent);
-        } else {
-            setIntent(null);
-            // Fallback for generic settings if specific one not found
-            Intent fallback = new Intent(Settings.ACTION_SETTINGS);
-            if (getContext().getPackageManager().resolveActivity(fallback, 0) != null) {
-                setIntent(fallback);
-            }
+            return;
         }
+
+        // Modern Android fallback 1: Notification Listener Settings (Device & app notifications)
+        Intent listenerIntent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(EXTRA_FRAGMENT_HIGHLIGHT_KEY, cn.flattenToString())
+                .putExtra(EXTRA_SHOW_FRAGMENT_ARGS, extras);
+
+        if (getContext().getPackageManager().resolveActivity(listenerIntent, 0) != null) {
+            setIntent(listenerIntent);
+            return;
+        }
+
+        // Modern Android fallback 2: App Notification Settings
+        Intent appNotifIntent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+
+        if (getContext().getPackageManager().resolveActivity(appNotifIntent, 0) != null) {
+            setIntent(appNotifIntent);
+            return;
+        }
+
+        // Generic fallback
+        setIntent(new Intent(Settings.ACTION_SETTINGS));
     }
 
     private void updateUI() {
@@ -116,7 +138,6 @@ public class NotificationDotsPreference extends Preference
         super.onDetached();
         SettingsCache.INSTANCE.get(getContext()).unregister(NOTIFICATION_BADGING_URI, this);
         getContext().getContentResolver().unregisterContentObserver(mListenerListObserver);
-
     }
 
     private void setWidgetFrameVisible(boolean isVisible) {
@@ -127,12 +148,39 @@ public class NotificationDotsPreference extends Preference
     }
 
     @Override
+    public void performClick() {
+        if (getFragment() != null) {
+            super.performClick();
+            return;
+        }
+        Intent intent = getIntent();
+        if (intent != null) {
+            try {
+                getContext().startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (Exception e) {
+                try {
+                    Intent listenerIntent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getContext().startActivity(listenerIntent);
+                    return;
+                } catch (Exception ex) {
+                    super.performClick();
+                    return;
+                }
+            }
+        }
+        super.performClick();
+    }
+
+    @Override
     public void onBindViewHolder(PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
 
         View widgetFrame = holder.findViewById(android.R.id.widget_frame);
         if (widgetFrame != null) {
             widgetFrame.setVisibility(mWidgetFrameVisible ? View.VISIBLE : View.GONE);
+            widgetFrame.setOnClickListener(v -> performClick());
         }
     }
 
@@ -159,6 +207,7 @@ public class NotificationDotsPreference extends Preference
         setWidgetFrameVisible(!serviceEnabled);
         setFragment(serviceEnabled ? null : NotificationAccessConfirmation.class.getName());
         setSummary(summary);
+        updateIntent();
     }
 
     public static class NotificationAccessConfirmation
@@ -166,7 +215,7 @@ public class NotificationDotsPreference extends Preference
 
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
-            final Context context = getActivity();
+            final Context context = getActivity() != null ? getActivity() : requireContext();
             String msg = context.getString(R.string.msg_missing_notification_access,
                     context.getString(R.string.derived_app_name));
             return new AlertDialog.Builder(context)
@@ -179,7 +228,8 @@ public class NotificationDotsPreference extends Preference
 
         @Override
         public void onClick(DialogInterface dialogInterface, int i) {
-            ComponentName cn = new ComponentName(getActivity(), NotificationListener.class);
+            Context context = getActivity() != null ? getActivity() : requireContext();
+            ComponentName cn = new ComponentName(context, NotificationListener.class);
             Bundle showFragmentArgs = new Bundle();
             showFragmentArgs.putString(EXTRA_FRAGMENT_HIGHLIGHT_KEY, cn.flattenToString());
 
@@ -187,7 +237,7 @@ public class NotificationDotsPreference extends Preference
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     .putExtra(EXTRA_FRAGMENT_HIGHLIGHT_KEY, cn.flattenToString())
                     .putExtra(EXTRA_SHOW_FRAGMENT_ARGS, showFragmentArgs);
-            getActivity().startActivity(intent);
+            context.startActivity(intent);
         }
     }
 }

@@ -107,14 +107,9 @@ public class Hotseat extends CellLayout implements Insettable {
         super(context, attrs, defStyle);
         setClipChildren(false);
         setClipToPadding(false);
-        if (Flags.enableQsbOnHotseat(context)) {
-            mQsb = LayoutInflater.from(context).inflate(R.layout.qsb_container_hotseat, this,
-                    false);
-        } else {
-            mQsb = LayoutInflater.from(context).inflate(R.layout.search_container_hotseat, this,
-                    false);
-        }
-
+        mQsb = LayoutInflater.from(context).inflate(R.layout.qsb_container_hotseat, this,
+                false);
+        mQsb.setVisibility(Flags.enableQsbOnHotseat(context) ? View.VISIBLE : View.GONE);
         addView(mQsb);
         mIconsAlphaChannels = new MultiValueAlpha(getShortcutsAndWidgets(),
                 ALPHA_CHANNEL_CHANNELS_COUNT);
@@ -273,7 +268,8 @@ public class Hotseat extends CellLayout implements Insettable {
                 lp.width = grid.hotseatBarSizePx + insets.right;
             }
         } else {
-            mQsb.setVisibility(View.VISIBLE);
+            boolean qsbEnabled = Flags.enableQsbOnHotseat(getContext());
+            mQsb.setVisibility(qsbEnabled ? View.VISIBLE : View.GONE);
             lp.gravity = Gravity.BOTTOM;
             lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
             lp.height = grid.hotseatBarSizePx;
@@ -283,6 +279,21 @@ public class Hotseat extends CellLayout implements Insettable {
         setPadding(padding.left, padding.top, padding.right, padding.bottom);
         setLayoutParams(lp);
         InsettableFrameLayout.dispatchInsets(this, insets);
+    }
+
+    /**
+     * Immediately updates QSB visibility based on current preference and layout mode,
+     * triggering relayout without needing activity recreation.
+     */
+    public void updateQsbVisibility() {
+        if (mQsb == null) return;
+        DeviceProfile grid = mActivity.getDeviceProfile();
+        boolean qsbEnabled = Flags.enableQsbOnHotseat(getContext());
+        int targetVisibility = (qsbEnabled && !grid.isVerticalBarLayout()) ? View.VISIBLE : View.GONE;
+        if (mQsb.getVisibility() != targetVisibility) {
+            mQsb.setVisibility(targetVisibility);
+            requestLayout();
+        }
     }
 
     public void setWorkspace(Workspace<?> w) {
@@ -324,29 +335,33 @@ public class Hotseat extends CellLayout implements Insettable {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
         DeviceProfile dp = mActivity.getDeviceProfile();
-        mQsb.measure(makeMeasureSpec(dp.hotseatQsbWidth, MeasureSpec.EXACTLY),
-                makeMeasureSpec(dp.getHotseatProfile().getQsbHeight(), MeasureSpec.EXACTLY));
+        if (mQsb != null && mQsb.getVisibility() != View.GONE) {
+            mQsb.measure(makeMeasureSpec(dp.hotseatQsbWidth, MeasureSpec.EXACTLY),
+                    makeMeasureSpec(dp.getHotseatProfile().getQsbHeight(), MeasureSpec.EXACTLY));
+        }
     }
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
 
-        int qsbMeasuredWidth = mQsb.getMeasuredWidth();
-        int left;
-        DeviceProfile dp = mActivity.getDeviceProfile();
-        if (dp.isQsbInline) {
-            int qsbSpace = dp.hotseatBorderSpace;
-            left = Utilities.isRtl(getResources()) ? r - getPaddingRight() + qsbSpace
-                    : l + getPaddingLeft() - qsbMeasuredWidth - qsbSpace;
-        } else {
-            left = (r - l - qsbMeasuredWidth) / 2;
-        }
-        int right = left + qsbMeasuredWidth;
+        if (mQsb != null && mQsb.getVisibility() != View.GONE) {
+            int qsbMeasuredWidth = mQsb.getMeasuredWidth();
+            int left;
+            DeviceProfile dp = mActivity.getDeviceProfile();
+            if (dp.isQsbInline) {
+                int qsbSpace = dp.hotseatBorderSpace;
+                left = Utilities.isRtl(getResources()) ? r - getPaddingRight() + qsbSpace
+                        : l + getPaddingLeft() - qsbMeasuredWidth - qsbSpace;
+            } else {
+                left = (r - l - qsbMeasuredWidth) / 2;
+            }
+            int right = left + qsbMeasuredWidth;
 
-        int bottom = b - t - dp.getQsbOffsetY();
-        int top = bottom - dp.getHotseatProfile().getQsbHeight();
-        mQsb.layout(left, top, right, bottom);
+            int bottom = b - t - dp.getQsbOffsetY();
+            int top = bottom - dp.getHotseatProfile().getQsbHeight();
+            mQsb.layout(left, top, right, bottom);
+        }
     }
 
     /**

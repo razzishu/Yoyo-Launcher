@@ -33,6 +33,7 @@ import android.graphics.Canvas;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
@@ -41,6 +42,7 @@ import androidx.annotation.Nullable;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.util.Consumer;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.yoyo.launcher.ExtendedEditText;
@@ -151,10 +153,66 @@ public class AllAppsRecyclerView extends FastScrollRecyclerView {
         }
     }
 
+    public boolean isAtTop() {
+        if (!canScrollVertically(-1) || computeVerticalScrollOffset() <= 8) {
+            return true;
+        }
+        RecyclerView.LayoutManager lm = getLayoutManager();
+        if (lm instanceof LinearLayoutManager) {
+            int firstPos = ((LinearLayoutManager) lm).findFirstVisibleItemPosition();
+            if (firstPos == 0) {
+                View firstChild = lm.findViewByPosition(0);
+                if (firstChild != null && firstChild.getTop() >= getPaddingTop() - 8) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private float mDownY;
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent e) {
+        if (e.getAction() == MotionEvent.ACTION_DOWN) {
+            mDownY = e.getY();
+            if (isAtTop() && getScrollState() != SCROLL_STATE_IDLE) {
+                stopScroll();
+            }
+        } else if (e.getAction() == MotionEvent.ACTION_MOVE) {
+            float dy = e.getY() - mDownY;
+            if (dy > 0 && isAtTop()) {
+                // Downward swipe when list is at top - do NOT intercept!
+                // Ensure parent touch controllers can immediately take over and close drawer
+                if (getParent() != null) {
+                    getParent().requestDisallowInterceptTouchEvent(false);
+                }
+                return false;
+            }
+        }
+        return super.onInterceptTouchEvent(e);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent e) {
+        if (e.getAction() == MotionEvent.ACTION_MOVE) {
+            float dy = e.getY() - mDownY;
+            if (dy > 0 && isAtTop()) {
+                if (getParent() != null) {
+                    getParent().requestDisallowInterceptTouchEvent(false);
+                }
+            }
+        }
+        return super.onTouchEvent(e);
+    }
+
     @Override
     public void onScrolled(int dx, int dy) {
         super.onScrolled(dx, dy);
         mCumulativeVerticalScroll += dy;
+        if (isAtTop() && getScrollState() == SCROLL_STATE_SETTLING) {
+            stopScroll();
+        }
     }
 
     /**
